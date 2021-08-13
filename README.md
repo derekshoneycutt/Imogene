@@ -3,10 +3,10 @@
 This is a basic Javascript library for doing things. It is more-or-less structured together, but really just a compilation of useful bits. This is a diverse library built around DOM manipulations, with the addition of a binding interface and a few useful random utilities I find myself commonly using around the DOM.
 
 ##### Table of Contents
-[Suggested Use](#suggested-use)
-[Primary Access Interface](#primary-access-interface)
-[Binding Data](#binding-data)
-[License](#license)
+- [Suggested Use](#suggested-use)
+- [Primary Access Interface](#primary-access-interface)
+- [Binding Data](#binding-data)
+- [License](#license)
 
 
 
