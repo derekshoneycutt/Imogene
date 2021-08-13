@@ -904,7 +904,7 @@ export const Imogene = (first, ...etc) => {
  
  /** Collection of exports for Imogene functionality */
  export const ImogeneExports = {
-     shortQuery: shortQuery,
+     shortQuery: Imogene,
  
      value: value,
      valueArray: valueArray,
