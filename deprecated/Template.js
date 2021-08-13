@@ -1,5 +1,5 @@
-﻿import { makeNode } from './DomMods';
-import NotifyingValue from './NotifyingValue';
+﻿import { makeNode } from '../DomMods';
+import NotifyingValue from '../NotifyingValue';
 import DOMPurify from 'dompurify';
 
 /**

@@ -1,5 +1,5 @@
 ﻿import AnimationState from './AnimationState';
-import { getOwnProperties } from './Base';
+import { getOwnProperties } from '../Base';
 
 /**
  * Run an animation

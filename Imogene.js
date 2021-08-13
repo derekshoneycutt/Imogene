@@ -1,5 +1,4 @@
-﻿import IntervalFunction from './IntervalFunction';
-import {
+﻿import {
     empty, parentElements,
     appendChildren, emptyAndReplace,
     addEvents, removeEvents,
@@ -7,12 +6,10 @@ import {
     setStyle, setProperties,
     makeNode
 } from './DomMods';
-import { animation, animate } from './Animate';
 import { shortQuery } from './shortQuery';
 import NotifyingValue from './NotifyingValue';
 import EventsHandler from './EventsHandler';
 import { getOwnProperties } from './Base';
-import { ImogeneTemplate as templater } from './Template';
 import RestFetch from './RestFetch';
 
 /**
@@ -24,20 +21,6 @@ const flattenSlots = e =>
     e.tagName === 'SLOT' ?
         [].concat(...[...e.assignedNodes()].map(flattenSlots)) :
         [e];
-
-/**
- * Run an interval for some time
- * @param {Function} runner function to run every frame
- * @param {number} time time between frames
- * @param {Function} evalparams function determining parameters
- * @param {any} startdetails information details to send to the frame runner
- * @returns {Promise<void>} promise that resolves when the interval is complete
- */
-export const runInterval = (runner, time, evalparams, startdetails) => {
-    return new IntervalFunction()
-        .runAsPromise(runner, time, evalparams, startdetails);
-};
-
 
 /**
  * Turns a string into camelCase
@@ -103,10 +86,6 @@ export const ImogeneExports = {
 
     make: makeNode,
 
-    runInterval: runInterval,
-    animation: animation,
-    animate: animate,
-
     getOwnProperties: getOwnProperties,
 
     camelize: camelize,
@@ -116,6 +95,3 @@ export const ImogeneExports = {
 
 /** Imogene advanced query entry */
 export const Imogene = shortQuery;
-
-/** Imogene Template Method */
-export const ImogeneTemplate = templater;
