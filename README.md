@@ -60,8 +60,6 @@ $_ = {
     getOwnProperties: (obj) => string[], // Get the name of properties of an object into a string array
     camelize: (string) => string, // Turn a string into camel case
 
-    RestFetch: (baseUrl, startUrl[, method[, body[, details]]]) => Promise, // Perform a fetch to the home entry of a RESTful web service (see below)
-
 	// These are very similar to the extensions from the $ syntax described below; see below for more
     empty: (Node|Node[]) => void, // empty out elements
     appendChildren: (Node|Node[], ...children) => void, // append children to an element
