@@ -133,33 +133,7 @@ myGoodValue.removeListener(myEventHandler);
 myGoodValue.clearEvents(); // Breaks DOM binding!
 ```
 
-There is a `DomBinding` class inside DomMods.js, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively).
-
-## RestFetch
-
-The `RestFetch` interface is a wrapper over Javascript's `fetch` that automatically constructs a chain of functions that perform `fetch` based upon hyperlink data. This enables a complete interface to a compatible RESTful API. A compatible API must return JSON that essentially follows this pattern:
-```json
-{
-	...,
-	"links": [
-		{
-			"rel": "This becomes the function name in the JS object",
-			"method": "HTTP methods supported, separated by a |",
-			"href": "address to query",
-			"[postData]": "Any string or object representing a template to send back in POST requests"
-		},
-		...
-	]
-}
-```
-Every link will be translated into a function on the returned object of `RestFetch`, based upon method and rel string. For example, using `RestFetch` may look like this:
-```javascript
-let data = await $_.RestFetch('/api/', 'portfolio', err_callback);
-let settings = await data.getSettings(); 
-let postData = Object.assign({}, settings.postAddressPostData);
-postData.address = '123 New Address Lane';
-await settings.postAddress(postData);
-```
+There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively).
 
 
 # LICENSE
