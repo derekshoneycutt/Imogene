@@ -9,20 +9,22 @@
 
 /** Value that notifies when it changes */
 export default class NotifyingValue {
+    /** The value @type {any} */
+    #value = null;
+    /** The translator to translate the value
+     * @type {NVTranslate} */
+    #translator = x => x;
+    /** Events handler to notify when value changes */
+    #events = new EventsHandler();
+
     /**
      * Construct a new notifying value
      * @param {any} value Value to house in the object
      * @param {NVTranslate} [translator] Translator to translate the 
      */
     constructor(value, translator = x => x) {
-        /** The value @type {any} */
-        this._value = value;
-        /** The translator to translate the value
-         * @type {NVTranslate} */
-        this._translator = translator;
-
-        /** Events handler to notify when value changes */
-        this._events = new EventsHandler();
+        this.#value = value;
+        this.#translator = translator;
     }
 
     /**
@@ -30,7 +32,7 @@ export default class NotifyingValue {
      * @returns {any} The current value
      */
     get() {
-        return this._value;
+        return this.#value;
     }
 
     /**
@@ -40,8 +42,8 @@ export default class NotifyingValue {
      * @returns {Promise<void>} Promise that resolves when all notifying events have completed
      */
     set(value, force) {
-        if (this._value !== value || force) {
-            this._value = value;
+        if (this.#value !== value || force) {
+            this.#value = value;
 
             return this.forceTrigger();
         }
@@ -52,7 +54,7 @@ export default class NotifyingValue {
      * @returns {Promise<void>} Promise that resolves when last notification has ended
      */
     forceTrigger() {
-        return this._events.dispatch(this._translator(this._value));
+        return this.#events.dispatch(this.#translator(this.#value));
     }
 
     /**
@@ -60,7 +62,7 @@ export default class NotifyingValue {
      * @param {imogeneListener} listener listener to add to the event handler
      */
     addListener(listener) {
-        this._events.addListener(listener);
+        this.#events.addListener(listener);
     }
 
     /**
@@ -68,11 +70,11 @@ export default class NotifyingValue {
      * @param {imogeneListener} listener listener to remove from the event handler
      */
     removeListener(listener) {
-        this._events.removeListener(listener);
+        this.#events.removeListener(listener);
     }
 
     /** Clear out all notifying event listeners */
     clearEvents() {
-        this._events.clear();
+        this.#events.clear();
     }
 }

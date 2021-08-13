@@ -6,13 +6,14 @@
 
 /** Object to handle events */
 export default class EventsHandler {
+    /**
+     * Listeners that are to be called when the event is dispatched
+     * @type {imogeneListener[]}
+     * */
+    #listeners = [];
+
     /** Construct a new events handler */
     constructor() {
-        /**
-         * Listeners that are to be called when the event is dispatched
-         * @type {imogeneListener[]}
-         * */
-        this._listeners = [];
     }
 
     /**
@@ -20,7 +21,7 @@ export default class EventsHandler {
      * @param {imogeneListener} listener Event listener to add
      */
     addListener(listener) {
-        this._listeners.push(listener);
+        this.#listeners.push(listener);
     }
 
     /**
@@ -28,14 +29,14 @@ export default class EventsHandler {
      * @param {imogeneListener} listener Event listener to remove
      */
     removeListener(listener) {
-        const index = this._listeners.findIndex(l => l === listener);
+        const index = this.#listeners.findIndex(l => l === listener);
         if (index >= 0)
-            this._listeners.splice(index, 1);
+            this.#listeners.splice(index, 1);
     }
 
     /** Clear out all events */
     clear() {
-        this._listeners = [];
+        this.#listeners = [];
     }
 
     /**
@@ -43,7 +44,7 @@ export default class EventsHandler {
      * @param {...any} args arguments to pass to the event listeners
      */
     async dispatch(...args) {
-        const retValues = this._listeners.map(l => l(...args));
+        const retValues = this.#listeners.map(l => l(...args));
         await Promise.all(retValues.filter(v => v instanceof Promise));
     }
 }

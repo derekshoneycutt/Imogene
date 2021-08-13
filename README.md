@@ -1,17 +1,34 @@
 # Imogene
 
-This is a basic Javascript library for doing things. It is more-or-less structured together, but really just a compilation of useful bits. This is a diverse library built around DOM manipulations and an automatic client for compatible RESTful interfaces (e.g. the backend included in this project).
+This is a basic Javascript library for doing things. It is more-or-less structured together, but really just a compilation of useful bits. This is a diverse library built around DOM manipulations and an automatic client for compatible RESTful interfaces.
+
+## Suggested Use
 
 Suggested use of importing this library may be like this:
 ```javascript
 import { Imogene as $, ImogeneExports as $_ } from 'Imogene';
 ```
 
-The `$` syntax is remarkable for only kind of following a jQuery type syntax. The `$_` syntax is an object containing a handful of shortcuts. For example, the following is possible:
+
+## Primary Access Interface
+
+The `$` syntax is remarkable for only kind of following a jQuery type syntax, although it specifically diverges and has no intent in maintaining jquery-ness. The `$_` syntax is an object containing a handful of shortcuts. For example, the following is possible:
 ```javascript
 const checkbox = $("#mycheckbox");
 $_.setProperties(checkbox, {
 	checked: true
+});
+
+// there is even some nesting; e.g:
+const myNestedCheckbox = $("#mycontainer", "#mycheckbox"); 
+// myNestedCheckbox = elements w/ id "mycheckbox" in a container w/ id "mycontainer"
+// also:
+const myContainer = $("#mycontainer");
+const anotherNestedCheckbox = $(myContainer, '#mycheckbox');
+
+// Run something on startup, once DOM is appropriately loaded into the browser?
+$(() => {
+	// Do it here!
 });
 
 // Can also make new elements by passing in array only, as if parameters to make method! For example:
@@ -80,6 +97,7 @@ checkbox.setClassList({ hidden: false, 'my-special-class': true });
 checkbox.setStyle({ 'border-bottom': '1px solid #000' });
 ```
 
+## Binding Data
 
 There is some basic binding capability using NotifyingValue (backed by EventsHandler) and an internal binding class to update the DOM. An example:
 ```javascript
@@ -88,6 +106,36 @@ const newElement = $(['div', myval]);
 /* ... later */
 myval.set("Goodbye"); /* Updates text in the element */
 ```
+
+`EventsHandler` Is a simple class that handles events. A new instance may be created with `$_.event()`. For example:
+```javascript
+const myEvent = $_.event();
+
+const myEventHandler = (value) => alert(`Hey, you did ${value}!`);
+myEvent.addListener(myEventHandler);
+myEvent.dispatch('something cool!'); // shows alert, 'Hey, you did something cool!'
+myEvent.removeListener(myEventHandler);
+myEvent.clear();
+
+```
+
+`NotifyingValue` is built upon the eventshandler to store a value and notifying when its time is complete. This is kind of like the built in Proxy class, but just simpler. Example:
+```javascript
+const myGoodValue = $_.value(true, v => v ? 'A GOOD thing' : 'A BAD thing');
+const newElement = $(['div', myGoodValue]);
+
+myGoodValue.get(); // true
+myGoodValue.set(false); // updates newElement's text to 'A BAD thing'
+const myEventHandler = value => alert(`Showing: ${value}`);
+myGoodValue.addListener(myEventHandler);
+myGoodValue.forceTrigger(); // shows alert: 'Showing A BAD thing'
+myGoodValue.removeListener(myEventHandler);
+myGoodValue.clearEvents(); // Breaks DOM binding!
+```
+
+There is a `DomBinding` class inside DomMods.js, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively).
+
+## RestFetch
 
 The `RestFetch` interface is a wrapper over Javascript's `fetch` that automatically constructs a chain of functions that perform `fetch` based upon hyperlink data. This enables a complete interface to a compatible RESTful API. A compatible API must return JSON that essentially follows this pattern:
 ```json
@@ -112,3 +160,16 @@ let postData = Object.assign({}, settings.postAddressPostData);
 postData.address = '123 New Address Lane';
 await settings.postAddress(postData);
 ```
+
+
+# LICENSE
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this software dedicate any and all copyright interest in the software to the public domain. We make this dedication for the benefit of the public at large and to the detriment of our heirs and successors. We intend this dedication to be an overt act of relinquishment in perpetuity of all present and future rights to this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to http://unlicense.org/
