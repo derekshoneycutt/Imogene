@@ -194,27 +194,36 @@ export class NotifyingValue {
 
 /** Used for handling a binding with a NotifyingValue (or just mapping to any element) in DOM */
 export class DomBinding {
+    #container = null;
+    #current = null;
+    #value = null;
+    #insert = null;
+
     /**
      * Construct a new binding
      * @param {any} value value to bind to
      * @param {HTMLElement} container container to bind the value to
      * @param {(x: HTMLElement) => void} insert method used to insert DOM elements
      * @param {Array} [exist] Any existing elements to replace, if applicable
+     * @param {boolean} [doCreate] Whether to immediately create the binding element or not (default true)
      */
-    constructor(value, container, insert, exist = null) {
-        this.container = container;
-        this.current = exist;
-        this.value = value;
-        this.insert = insert;
+    constructor(value, container, insert, exist = null, doCreate = true) {
+        this.#container = container;
+        this.#current = exist;
+        this.#value = value;
+        this.#insert = insert;
+
+        if (doCreate)
+            this.#create();
     }
 
     /** Hide any currently shown elements */
-    hideAll() {
+    #hideAll = () => {
         hideOne = c => {
             if (c instanceof HTMLElement)
                 c.remove();
             else if (c instanceof DomBinding)
-                c.hideAll();
+                c.#hideAll();
         };
         if (this.current && this.current instanceof Array)
             this.current.forEach(hideOne);
@@ -222,18 +231,18 @@ export class DomBinding {
             hideOne(this.current);
         this.current = null;
         if (this.value instanceof NotifyingValue)
-            this.value.removeListener(this.replace);
+            this.value.removeListener(this.#replace);
     }
 
     /** Reduce the current rendered DOM down to a single element */
-    reduceCurrent() {
-        if (this.current && this.current instanceof Array) {
-            this.current = this.current.reduce((p, v) => {
+    #reduceCurrent = () => {
+        if (this.#current && this.#current instanceof Array) {
+            this.#current = this.#current.reduce((p, v) => {
                 if (p) {
                     if (v instanceof HTMLElement)
                         v.remove();
                     else if (v instanceof DomBinding)
-                        v.hideAll();
+                        v.#hideAll();
                     return p;
                 }
                 if (v instanceof HTMLElement || v instanceof DomBinding)
@@ -241,22 +250,22 @@ export class DomBinding {
                 return null;
             }, null);
         }
-        if (!this.current) return;
+        if (!this.#current) return;
 
         let tempSpan = createTextNode('');
-        if (this.current instanceof HTMLElement)
-            this.current.replaceWith(tempSpan);
-        else if (this.current instanceof DomBinding) {
-            this.current.reduceCurrent();
-            if (this.current.current)
-                this.current.current.replaceWith(tempSpan);
+        if (this.#current instanceof HTMLElement)
+            this.#current.replaceWith(tempSpan);
+        else if (this.#current instanceof DomBinding) {
+            this.#current.#reduceCurrent();
+            if (this.#current.#current)
+                this.#current.#current.replaceWith(tempSpan);
             else
-                this.insert(tempSpan);
-            this.current.hideAll();
+                this.#insert(tempSpan);
+            this.#current.#hideAll();
         }
         else
-            this.insert(tempSpan);
-        this.current = tempSpan;
+            this.#insert(tempSpan);
+        this.#current = tempSpan;
     }
 
     /**
@@ -264,7 +273,7 @@ export class DomBinding {
      * @param {any} replaceWith New values to replace DOM with
      * @returns {{ doms: [], props: {}, binds: [], curr: [] }} Description of replacement for binding
      */
-    getReplacement(replaceWith) {
+    #getReplacement = (replaceWith) => {
         let newarr = [];
         if (replaceWith instanceof Array || replaceWith instanceof HTMLCollection ||
             replaceWith instanceof NodeList)
@@ -280,7 +289,7 @@ export class DomBinding {
                 }
                 else if (v.toappend instanceof NotifyingValue) {
                     let textdom = createTextNode('');
-                    let bind = new DomBinding(v.toappend, this.container, this.insert, textdom);
+                    let bind = new DomBinding(v.toappend, this.#container, this.#insert, textdom, false);
                     p.doms.push(textdom);
                     p.binds.push(bind);
                     p.curr.push(bind);
@@ -299,36 +308,36 @@ export class DomBinding {
      * @param {any} replaceWith the new value to replace the DOM with
      * @returns {[]} The newly rendered DOM
      */
-    replace(replaceWith) {
-        this.reduceCurrent();
+    #replace = (replaceWith) => {
+        this.#reduceCurrent();
 
-        let dowith = this.getReplacement(replaceWith);
+        let dowith = this.#getReplacement(replaceWith);
 
         if (getOwnProperties(dowith.props).length > 0)
-            setProperties(this.container, dowith.props);
+            setProperties(this.#container, dowith.props);
 
         if (dowith.doms.length > 0) {
-            if (this.current)
-                this.current.replaceWith(...dowith.doms);
+            if (this.#current)
+                this.#current.replaceWith(...dowith.doms);
             else
-                dowith.doms.forEach(dom => this.insert(dom));
-            this.current = dowith.doms;
+                dowith.doms.forEach(dom => this.#insert(dom));
+            this.#current = dowith.doms;
         }
-        this.current = dowith.curr;
+        this.#current = dowith.curr;
 
-        dowith.binds.forEach(bind => bind.create());
+        dowith.binds.forEach(bind => bind.#create());
 
-        return this.current;
+        return this.#current;
     }
 
     /** Create the DOM node and show it */
-    create() {
-        if (this.value instanceof NotifyingValue) {
-            this.value.addListener(v => window.requestAnimationFrame(() => this.replace(v)));
-            this.value.forceTrigger();
+    #create = () => {
+        if (this.#value instanceof NotifyingValue) {
+            this.#value.addListener(v => window.requestAnimationFrame(() => this.#replace(v)));
+            this.#value.forceTrigger();
         }
         else
-            this.replace(this.value);
+            this.#replace(this.value);
     }
 }
 
@@ -411,7 +420,7 @@ export const appendChildren = (el, ...children) => {
                         el.appendChild(child.toappend);
                     }
                     else if (child.toappend instanceof NotifyingValue) {
-                        (new DomBinding(child.toappend, el, x => el.appendChild(x))).create();
+                        new DomBinding(child.toappend, el, x => el.appendChild(x));
                     }
                     else if (child.toappend instanceof Object) {
                         setProperties(el, child.toappend);
@@ -691,7 +700,7 @@ export const insertBefore = (node, ...nodes) => {
                         node.before(child.toappend);
                     }
                     else if (child.toappend instanceof NotifyingValue) {
-                        (new DomBinding(child.toappend, node, x => node.before(x))).create();
+                        new DomBinding(child.toappend, node, x => node.before(x));
                     }
                     else if (child.toappend instanceof Object) {
                         setProperties(node, child.toappend);
@@ -721,7 +730,7 @@ export const insertAfter = (node, ...nodes) => {
                         node.after(child.toappend);
                     }
                     else if (child.toappend instanceof NotifyingValue) {
-                        (new DomBinding(child.toappend, node, x => node.after(x))).create();
+                        new DomBinding(child.toappend, node, x => node.after(x));
                     }
                     else if (child.toappend instanceof Object) {
                         setProperties(node, child.toappend);
@@ -874,41 +883,55 @@ export const Imogene = (first, ...etc) => {
 
 
 
-/**
- * Create a new notifying value object
- * @param {any} v Initial value
- * @param {Function} [t] translation function
- * @returns {NotifyingValue} a new notifying value object containing the value
- */
- export const value = (v, t) => new NotifyingValue(v, t);
-
- /**
-  * Create a new array of notifying values
-  * @param {number} n Length of array to create
-  * @param {Function} g Getter for initial values
-  * @returns {NotifyingValue[]} Newly created array
-  */
- export const valueArray = (n, g = (i) => i) => {
-     let ret = [];
-     for (let i = 0; i < n; ++i) {
-         ret.push(value(g(i)));
-     }
-     return ret;
- };
  
  /**
   * Create a new events handler object
   * @returns {EventsHandler} a new events handler object
   */
  export const event = () => new EventsHandler();
+
+ /**
+  * Create a new notifying value object
+  * @param {any} v Initial value
+  * @param {Function} [t] translation function
+  * @returns {NotifyingValue} a new notifying value object containing the value
+  */
+  export const value = (v, t) => new NotifyingValue(v, t);
+ 
+  /**
+   * Create a new array of notifying values
+   * @param {number} n Length of array to create
+   * @param {Function} g Getter for initial values
+   * @returns {NotifyingValue[]} Newly created array
+   */
+  export const valueArray = (n, g = (i) => i) => {
+      let ret = [];
+      for (let i = 0; i < n; ++i) {
+          ret.push(value(g(i)));
+      }
+      return ret;
+  };
+
+/**
+ * Construct a new binding
+ * @param {any} value value to bind to
+ * @param {HTMLElement} container container to bind the value to
+ * @param {(x: HTMLElement) => void} [insert] method used to insert DOM elements
+ * @param {Array} [exist] Any existing elements to replace, if applicable
+ * @param {boolean} [doCreate] Whether to immediately create the binding element or not (default true)
+ */
+ export const bind = 
+    (value, container, insert = (x => container.appendChild(x)), exist = null, doCreate = true) =>
+        new DomBinding(value, container, insert, exist, doCreate);
  
  /** Collection of exports for Imogene functionality */
  export const ImogeneExports = {
      shortQuery: Imogene,
  
+     event: event,
      value: value,
      valueArray: valueArray,
-     event: event,
+     bind: bind,
  
      empty: empty,
      appendChildren: appendChildren,
