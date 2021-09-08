@@ -918,11 +918,10 @@ export const Imogene = (first, ...etc) => {
  * @param {HTMLElement} container container to bind the value to
  * @param {(x: HTMLElement) => void} [insert] method used to insert DOM elements
  * @param {Array} [exist] Any existing elements to replace, if applicable
- * @param {boolean} [doCreate] Whether to immediately create the binding element or not (default true)
  */
  export const bind = 
-    (value, container, insert = (x => container.appendChild(x)), exist = null, doCreate = true) =>
-        new DomBinding(value, container, insert, exist, doCreate);
+    (value, container, insert = (x => container.appendChild(x)), exist = null) =>
+        new DomBinding(value, container, insert, exist);
  
  /** Collection of exports for Imogene functionality */
  export const ImogeneExports = {
