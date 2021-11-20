@@ -2,6 +2,8 @@
 
 This is a basic Javascript library for doing things. It is more-or-less structured together, but really just a compilation of useful bits. This is a diverse library built around DOM manipulations, with the addition of a binding interface and a few useful random utilities I find myself commonly using around the DOM.
 
+I used to have a whole jquery-copied interface, but I found this annoying and just harder to read, so now I prefer interaction through a single object interface (see below). This also helps maintain a sub-1000 lines, including extensive comments. Run through a minifier, the code is tiny. I like it.
+
 ##### Table of Contents
 - [Suggested Use](#suggested-use)
 - [Primary Access Interface](#primary-access-interface)
@@ -14,48 +16,34 @@ This is a basic Javascript library for doing things. It is more-or-less structur
 
 Suggested use of importing this library may be like this:
 ```javascript
-import { Imogene as $, ImogeneExports as $_ } from 'Imogene';
+import { Imogene as $_ } from 'Imogene';
 ```
 
-Note: at this point, you can get by with everything just using the so called `$_` syntax here. The `$` function might even be more difficult to read without any real advantages. IDK. It's been fun.
+Note: I like the `$_` syntax and will use it below, but you can really just import `Imogene` and use it like that if you like.
 
 ## Primary Access Interface
 
-The `$` syntax is remarkable for only kind of following a jQuery type syntax, although it specifically diverges and has no intent in maintaining jquery-ness. The `$_` syntax is an object containing a handful of shortcuts. For example, the following is possible:
+The `$_` syntax is an object containing a handful of shortcuts. For example, the following is possible:
 ```javascript
-const checkbox = $("#mycheckbox");
+const checkbox = $_.find("#mycheckbox");
 $_.setProperties(checkbox, {
 	checked: true
 });
 
 // there is even some nesting; e.g:
-const myNestedCheckbox = $("#mycontainer", "#mycheckbox"); 
-const myNestedCheckboxSame = $_.findChildren('#mycontainer', '#mycheckbox');
+const myNestedCheckbox = $_.findChildren('#mycontainer', '#mycheckbox');
 // myNestedCheckbox = elements w/ id "mycheckbox" in a container w/ id "mycontainer"
 // also, this is all basically the same, too:
-const myContainer = $("#mycontainer");
-const anotherNestedCheckbox = $(myContainer, '#mycheckbox');
-const anotherNestedCheckboxSame = myContainer.find('#mycheckbox');
-const alsoMyContainer $_.find('#mycontainer');
-const thatSameNestedCheckbox = alsoMyContainer.find('#mycheckbox');
-const stillSameNestedCheckbox = $_.findChildren(alsoMyContainer, '#mycheckbox');
+const myContainer $_.find('#mycontainer');
+const thatSameNestedCheckbox = myContainer.find('#mycheckbox');
+const stillTheSameNestedCheckbox = $_.findChildren(myContainer, '#mycheckbox');
 
 // Run something on startup, once DOM is appropriately loaded into the browser?
-$(() => {
-    // Do it here!
-});
 $_.runOnLoad(() => {
     // Or in here!
 });
 
-// Can also make new elements by passing in array only, as if parameters to make method! For example:
-const myNewCheckbox = $(['label', /*{ label properties could go here... },*/
-	['input', {
-		type: 'checkbox',
-		classList: { hidden: false, 'my-special-checkbox': true },
-		on: { click: e => alert('Oh, you clicked my checkbox!') }
-	}], 'Clickable checkbox!!']);
-// also do it with $_.make :
+// Can also make new elements, as if parameters to make method! For example:
 const antherNewCheckbox = $_.make('label', /*{ label properties could go here... },*/
 	['input', {
 		type: 'checkbox',
@@ -63,8 +51,8 @@ const antherNewCheckbox = $_.make('label', /*{ label properties could go here...
 		on: { click: e => alert('Oh, you clicked my checkbox!') }
 	}], 'Clickable checkbox!!');
 
-// The $_ object is as follows:
-$_ = {
+// The Imogene or $_ object is as follows:
+_ = {
     getOwnProperties: (obj) => string[], // Get the name of properties of an object into a 
     camelize: (string) => string, // Turn a string into camel case
     flattenSlots: (slot) => Node[], // flattens slots to their actual DOM represented elements
@@ -102,7 +90,7 @@ $_ = {
 };
 ```
 
-The `$` syntax used to find and modify DOM elements returns an array of elements that is extended with additional functionality. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request, and any query from the `$_.find` etc. is also enhanced with these same extensions. Some code elaboration:
+The functions used to find and modify DOM elements often return an array of elements that is extended with additional functionality. Basically, any function returning Node[] explicitly will have that array enhanced. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request. Some code elaboration:
 ```javascript
 const checkbox = $('#mycheckbox');
 
@@ -126,7 +114,7 @@ const checkbox_extended = {
 };
 
 //e.g.
-$('#mylabel').emptyAndReplace('Something different');
+$_.find('#mylabel').emptyAndReplace('Something different');
 checkbox.addEvents({ click: e => alert('clicked!') });
 checkbox.setClassList({ hidden: false, 'my-special-class': true });
 checkbox.setStyle({ 'border-bottom': '1px solid #000' });
@@ -168,7 +156,7 @@ myGoodValue.removeListener(myEventHandler);
 myGoodValue.clearEvents(); // Breaks DOM binding!
 ```
 
-There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively). The `$_` includes a `bind` method which creates the `DomBinding` class, but you should spend some time studying the code and understanding it before using. Simply appending a `NotifyingValue` with `make`, `setProperties`, `appendChildren`, `emptyAndReplace`, `insertBefore`, and `insertAfter` all create this binding in more obvious manners.
+There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$_` extended DOM methods. The `$_` includes a `bind` method which creates the `DomBinding` class, but you should spend some time studying the code and understanding it before using. Simply appending a `NotifyingValue` with `make`, `setProperties`, `appendChildren`, `emptyAndReplace`, `insertBefore`, and `insertAfter` all create this binding in more obvious manners.
 
 
 # LICENSE
