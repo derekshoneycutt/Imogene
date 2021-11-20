@@ -17,6 +17,7 @@ Suggested use of importing this library may be like this:
 import { Imogene as $, ImogeneExports as $_ } from 'Imogene';
 ```
 
+Note: at this point, you can get by with everything just using the so called `$_` syntax here. The `$` function might even be more difficult to read without any real advantages. IDK. It's been fun.
 
 ## Primary Access Interface
 
@@ -49,32 +50,44 @@ const myNewCheckbox = $(['label', /*{ label properties could go here... },*/
 
 // The $_ object is as follows:
 $_ = {
-	shortQuery: (...query) => any, // The same as the Imogene or $ method
+    getOwnProperties: (obj) => string[], // Get the name of properties of an object into a 
+    camelize: (string) => string, // Turn a string into camel case
+    flattenSlots: (slot) => Node[], // flattens slots to their actual DOM represented elements
+	runOnLoad: (function) => Promise, // runs a function once the DOM is fully loaded, returning a promise that completes upon finishing said function
 
+    event: () => EventHandler, // Construct a new EventHandler that can listen to and run events
     value: (initial, [(in) => out]) => NotifyingValue, // Creates a NotifyingValue for binding in DOM 
     valueArray: (size, default) => NotifyingValue[], // Create an array of NotifyingValues for binding in DOM
-    event: () => EventHandler, // Construct a new EventHandler that can listen to and run events
-
-    flattenSlots: (slot) => Node[], // flattens slots to their actual DOM represented elements
-    make: (elementName, [{properties}], ...children) => Node[], // Make new DOM elements
-    getOwnProperties: (obj) => string[], // Get the name of properties of an object into a string array
-    camelize: (string) => string, // Turn a string into camel case
-
-	// These are very similar to the extensions from the $ syntax described below; see below for more
+	bind: (any, HTMLElement, [insert: (x: HTMLElement) => void], [exist: Array]) => DomBinding, // create a new dom binding (this can be useful but easier to just create a value and add it as a child with methods below, tbh)
+	
+    parentElements: (Node|Node[]) => Node[], // Get direct parent elements of nodes
     empty: (Node|Node[]) => void, // empty out elements
     appendChildren: (Node|Node[], ...children) => void, // append children to an element
     emptyAndReplace: (Node|Node[], ...chidren) => void, // like empty then appendChildren
-    parentElements: (Node|Node[]) => Node[], // Get direct parent elements of nodes
+	
     addEvents: (Node|Node[], {}) => Node|Node[], // Add event listeners to an element
     removeEvents: (Node|Node[], {}) => Node|Node[], // Remove event listeners from an element
     setClassList: (Node|Node[], {}) => Node|Node[], // Set the class list to t
     addClass: (Node|Node[], string) => Node|Node[], // add CSS classes to the nodes
     setStyle: (Node|Node[], {}) => [], // Set CSS Styles to nodes
-    setProperties: (Node|Node[], {}) => any // Set HTML Attributes on nodes
+    setProperties: (Node|Node[], {}) => any, // Set HTML Attributes on nodes
+
+    make: (elementName, [{properties}], ...children) => Node[], // Make new DOM elementsstring array
+	makeEmpty: () => Node[], // make an empty array of nodes (sometimes useful)
+	enhance: (Node[]) => Node[], // enhance an array of nodes with additional functionality (see below)
+
+	prop: (Node|Node[], string, [...values]) => values[], // Gets/Sets a property across on node(s)
+
+	removeNode: (Node|Node[]) => Node|Node[], // remove node(s) from the DOM tree
+	insertBefore: (Node|Node[], ...children) => Node|Node[], // Insert children directly before an existing node(s)
+	insertAfter: (Node|Node[], ...children) => Node|Node[], // Insert children directly after an existing node(s)
+
+	findChildren: (Node|Node[], ...query) => Node[], // Find children of node(s) matching a query/queries
+	find: (...query) => Node[], // find all nodes that match a given query/queries
 };
 ```
 
-The `$` syntax used to find and modify DOM elements returns an array of elements that is extended with additional functionality. Some code elaboration:
+The `$` syntax used to find and modify DOM elements returns an array of elements that is extended with additional functionality. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request. Some code elaboration:
 ```javascript
 const checkbox = $('#mycheckbox');
 
@@ -93,7 +106,8 @@ const checkbox_extended = {
 	prop: (name, ...val) => any, // Get or set a single JS property of the first element in the array
 	remove: () => void, // remove the elements from the DOM tree
 	before: (...nodes) => Node, // Insert additional nodes just before the first element in the array
-	after: (...nodes) => Node, // Insert additional nodes just after the last element in the array
+	after: (...nodes) => Node, // Insert additional nodes just after the last element in the array,
+	find: (...query) => Node[] // Find children nodes that match given queries
 };
 
 //e.g.
@@ -139,7 +153,7 @@ myGoodValue.removeListener(myEventHandler);
 myGoodValue.clearEvents(); // Breaks DOM binding!
 ```
 
-There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively).
+There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$` or `$_` interfaces (i.e. `Imogene` or `ImogeneExports` respectively). The `$_` includes a `bind` method which creates the `DomBinding` class, but you should spend some time studying the code and understanding it before using. Simply appending a `NotifyingValue` with `make`, `setProperties`, `appendChildren`, `emptyAndReplace`, `insertBefore`, and `insertAfter` all create this binding in more obvious manners.
 
 
 # LICENSE

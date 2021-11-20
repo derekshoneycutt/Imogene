@@ -741,6 +741,41 @@ export const insertAfter = (node, ...nodes) => {
     return node;
 };
 
+/**
+ * Find the matching children of a parent element
+ * @param {Node} parentEl parent element
+ * @param {string[]} query Any queries to run
+ */
+const findChildrenSingleParent = (parentEl, ...query) =>
+        query
+            .map(q =>
+                [...parentEl.querySelectorAll(q)])
+            .reduce((p, c) => {
+                p.push(...c);
+                return p;
+            }, []);
+
+/**
+ * Find the matching children of a parent element or elements
+ * @param {Node | Node[] | NodeList | HTMLCollection} parentEl parent element
+ * @param {string[]} query Any queries to run
+ */
+export const findChildren = (parentEl, ...query) => 
+    parentEl instanceof Node ?
+        enhanceElements(findChildrenSingleParent(parentEl, ...query))
+    :   parentEl instanceof Array || 
+        parentEl instanceof NodeList || 
+        parentEl instanceof HTMLCollection ?
+            enhanceElements(
+                [...parentEl]
+                    .map(currParent => 
+                        findChildrenSingleParent(currParent, ...query))
+                    .reduce((p, c) => {
+                        p.push(...c);
+                        return p;
+                    }, []))
+        :   null;
+
 
 
 /**
@@ -759,17 +794,18 @@ export const insertAfter = (node, ...nodes) => {
  * @property {() => void} remove
  * @property {(...nodes: (string|Node)[]) => Node} before
  * @property {(...nodes: (string|Node)[]) => Node} after
+ * @property {(...query: string[]) => ImogeneArray} find
  * @property {HTMLElement[]} array
  * 
  * @typedef {Array<HTMLElement> & ImogeneArrayBase} ImogeneArray
  */
 
 /**
- * Enhance an array of elements with useful functions
+ * Enhance an element or array of elements with useful functions
  * @param {ImogeneArray} array array to enhance
  * @returns {ImogeneArray} enhanced array
  */
- const enhanceReturnArray = (array) => {
+export const enhanceElements = (array) => {
     if (array instanceof Array) {
         let extendWith = {
             empty: () => empty(array),
@@ -790,11 +826,19 @@ export const insertAfter = (node, ...nodes) => {
             before: (...nodes) => insertBefore(array, ...nodes),
             after: (...nodes) => insertAfter(array, ...nodes),
 
+            find: (...query) => findChildren(array, ...query),
+
             array: array,
 
             ___imogeneExtended___: true
         };
         Object.assign(array, extendWith);
+    }
+    else if (array instanceof NodeList || array instanceof HTMLCollection) {
+        return enhanceElements([...array]);
+    }
+    else if (array instanceof Node) {
+        return enhanceElements([array]);
     }
     return array;
 };
@@ -807,7 +851,7 @@ export const insertAfter = (node, ...nodes) => {
  */
 const queryOn = (start, ...query) => {
     if (start instanceof Node) {
-        return enhanceReturnArray(query.map(q => {
+        return enhanceElements(query.map(q => {
             if (q instanceof Array) {
                 return appendChildren(start, ...q);
             }
@@ -825,7 +869,7 @@ const queryOn = (start, ...query) => {
         }, []));
     }
     else if (start instanceof Array || start instanceof NodeList || start instanceof HTMLCollection) {
-        return enhanceReturnArray([...start].map(v => queryOn(v, ...query)).reduce((p, v) => {
+        return enhanceElements([...start].map(v => queryOn(v, ...query)).reduce((p, v) => {
             p.push(...v);
             return p;
         }, []));
@@ -836,6 +880,25 @@ const queryOn = (start, ...query) => {
     return start;
 };
 
+/** Make an empty Imogene Element Array
+ * @returns {ImogeneArray}
+ */
+export const makeEmpty = () => enhanceElements([]);
+
+/** Find all elements that match a given set of queries
+ * @param {string[]} query Queries to run search for (see querySelectorAll)
+ * @returns {ImogeneArray}
+ */
+export const findElements = (...query) =>
+    enhanceElements(
+        query
+            .map(q =>
+                [...document.querySelectorAll(q)])
+            .reduce((p, v) => {
+                p.push(...v);
+                return p;
+            }, []));
+
 /**
  * Perfrom an advanced query, which could be one of many operations
  * @param {any} first The first parameter, by which the operation will be decided
@@ -844,7 +907,7 @@ const queryOn = (start, ...query) => {
  */
 export const Imogene = (first, ...etc) => {
     if (typeof first === 'undefined' && etc.length < 1)
-        return enhanceReturnArray([]);
+        return makeEmpty();
 
     if (typeof first === 'function') {
         return runOnLoad(first);
@@ -853,7 +916,7 @@ export const Imogene = (first, ...etc) => {
         if (etc.length < 1) {
             if (first.___imogeneExtended___ ||
                 !first.reduce((p, v) => p || !(v instanceof Node), false))
-                return enhanceReturnArray([...first]);
+                return enhanceElements([...first]);
             return makeNode(...first);
         }
         else {
@@ -862,7 +925,7 @@ export const Imogene = (first, ...etc) => {
     }
     else if (typeof first === 'string') {
         if (etc.length < 1) {
-            return enhanceReturnArray([...document.querySelectorAll(first)]);
+            return findElements(first);
         }
         else {
             return queryOn(first, ...etc);
@@ -925,17 +988,20 @@ export const Imogene = (first, ...etc) => {
  
  /** Collection of exports for Imogene functionality */
  export const ImogeneExports = {
-     shortQuery: Imogene,
+     getOwnProperties: getOwnProperties,
+     camelize: camelize,
+     flattenSlots: flattenSlots,
+     runOnLoad: runOnLoad,
  
      event: event,
      value: value,
      valueArray: valueArray,
      bind: bind,
  
+     parentElements: parentElements,
      empty: empty,
      appendChildren: appendChildren,
      emptyAndReplace: emptyAndReplace,
-     parentElements: parentElements,
  
      addEvents: addEvents,
      removeEvents: removeEvents,
@@ -944,12 +1010,17 @@ export const Imogene = (first, ...etc) => {
      setStyle: setStyle,
      setProperties: setProperties,
  
-     flattenSlots: flattenSlots,
- 
      make: makeNode,
- 
-     getOwnProperties: getOwnProperties,
- 
-     camelize: camelize
+     makeEmpty: makeEmpty,
+     enhance: enhanceElements,
+
+     prop: property,
+
+     removeNode: removeNode,
+     insertBefore: insertBefore,
+     insertAfter: insertAfter,
+
+     findChildren: findChildren,
+     find: findElements
  };
  
