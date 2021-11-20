@@ -30,14 +30,22 @@ $_.setProperties(checkbox, {
 
 // there is even some nesting; e.g:
 const myNestedCheckbox = $("#mycontainer", "#mycheckbox"); 
+const myNestedCheckboxSame = $_.findChildren('#mycontainer', '#mycheckbox');
 // myNestedCheckbox = elements w/ id "mycheckbox" in a container w/ id "mycontainer"
-// also:
+// also, this is all basically the same, too:
 const myContainer = $("#mycontainer");
 const anotherNestedCheckbox = $(myContainer, '#mycheckbox');
+const anotherNestedCheckboxSame = myContainer.find('#mycheckbox');
+const alsoMyContainer $_.find('#mycontainer);
+const thatSameNestedCheckbox = alsoMyContainer.find('#mycheckbox');
+const stillSameNestedCheckbox = $_.findChildren(alsoMyContainer, '#mycheckbox');
 
 // Run something on startup, once DOM is appropriately loaded into the browser?
 $(() => {
-	// Do it here!
+    // Do it here!
+});
+$_.runOnLoad(() => {
+    // Or in here!
 });
 
 // Can also make new elements by passing in array only, as if parameters to make method! For example:
@@ -47,18 +55,25 @@ const myNewCheckbox = $(['label', /*{ label properties could go here... },*/
 		classList: { hidden: false, 'my-special-checkbox': true },
 		on: { click: e => alert('Oh, you clicked my checkbox!') }
 	}], 'Clickable checkbox!!']);
+// also do it with $_.make :
+const antherNewCheckbox = $_.make('label', /*{ label properties could go here... },*/
+	['input', {
+		type: 'checkbox',
+		classList: { hidden: false, 'my-special-checkbox': true },
+		on: { click: e => alert('Oh, you clicked my checkbox!') }
+	}], 'Clickable checkbox!!');
 
 // The $_ object is as follows:
 $_ = {
     getOwnProperties: (obj) => string[], // Get the name of properties of an object into a 
     camelize: (string) => string, // Turn a string into camel case
     flattenSlots: (slot) => Node[], // flattens slots to their actual DOM represented elements
-	runOnLoad: (function) => Promise, // runs a function once the DOM is fully loaded, returning a promise that completes upon finishing said function
+    runOnLoad: (function) => Promise, // runs a function once the DOM is fully loaded, returning a promise that completes upon finishing said function
 
     event: () => EventHandler, // Construct a new EventHandler that can listen to and run events
     value: (initial, [(in) => out]) => NotifyingValue, // Creates a NotifyingValue for binding in DOM 
     valueArray: (size, default) => NotifyingValue[], // Create an array of NotifyingValues for binding in DOM
-	bind: (any, HTMLElement, [insert: (x: HTMLElement) => void], [exist: Array]) => DomBinding, // create a new dom binding (this can be useful but easier to just create a value and add it as a child with methods below, tbh)
+    bind: (any, HTMLElement, [insert: (x: HTMLElement) => void], [exist: Array]) => DomBinding, // create a new dom binding (this can be useful but easier to just create a value and add it as a child with methods below, tbh)
 	
     parentElements: (Node|Node[]) => Node[], // Get direct parent elements of nodes
     empty: (Node|Node[]) => void, // empty out elements
@@ -73,21 +88,21 @@ $_ = {
     setProperties: (Node|Node[], {}) => any, // Set HTML Attributes on nodes
 
     make: (elementName, [{properties}], ...children) => Node[], // Make new DOM elementsstring array
-	makeEmpty: () => Node[], // make an empty array of nodes (sometimes useful)
-	enhance: (Node[]) => Node[], // enhance an array of nodes with additional functionality (see below)
+    makeEmpty: () => Node[], // make an empty array of nodes (sometimes useful)
+    enhance: (Node[]) => Node[], // enhance an array of nodes with additional functionality (see below)
 
-	prop: (Node|Node[], string, [...values]) => values[], // Gets/Sets a property across on node(s)
+    prop: (Node|Node[], string, [...values]) => values[], // Gets/Sets a property across on node(s)
 
-	removeNode: (Node|Node[]) => Node|Node[], // remove node(s) from the DOM tree
-	insertBefore: (Node|Node[], ...children) => Node|Node[], // Insert children directly before an existing node(s)
-	insertAfter: (Node|Node[], ...children) => Node|Node[], // Insert children directly after an existing node(s)
+    removeNode: (Node|Node[]) => Node|Node[], // remove node(s) from the DOM tree
+    insertBefore: (Node|Node[], ...children) => Node|Node[], // Insert children directly before an existing node(s)
+    insertAfter: (Node|Node[], ...children) => Node|Node[], // Insert children directly after an existing node(s)
 
-	findChildren: (Node|Node[], ...query) => Node[], // Find children of node(s) matching a query/queries
-	find: (...query) => Node[], // find all nodes that match a given query/queries
+    findChildren: (Node|Node[], ...query) => Node[], // Find children of node(s) matching a query/queries
+    find: (...query) => Node[], // find all nodes that match a given query/queries
 };
 ```
 
-The `$` syntax used to find and modify DOM elements returns an array of elements that is extended with additional functionality. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request. Some code elaboration:
+The `$` syntax used to find and modify DOM elements returns an array of elements that is extended with additional functionality. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request, and any query from the `$_.find` etc. is also enhanced with these same extensions. Some code elaboration:
 ```javascript
 const checkbox = $('#mycheckbox');
 
@@ -122,7 +137,7 @@ checkbox.setStyle({ 'border-bottom': '1px solid #000' });
 There is some basic binding capability using NotifyingValue (backed by EventsHandler) and an internal binding class to update the DOM. An example:
 ```javascript
 let myval = $_.value("Hello");
-const newElement = $(['div', myval]);
+const newElement = $_.make('div', myval);
 /* ... later */
 myval.set("Goodbye"); /* Updates text in the element */
 ```
@@ -142,7 +157,7 @@ myEvent.clear();
 `NotifyingValue` is built upon the eventshandler to store a value and notifying when its time is complete. This is kind of like the built in Proxy class, but just simpler. Example:
 ```javascript
 const myGoodValue = $_.value(true, v => v ? 'A GOOD thing' : 'A BAD thing');
-const newElement = $(['div', myGoodValue]);
+const newElement = $_.make('div', myGoodValue);
 
 myGoodValue.get(); // true
 myGoodValue.set(false); // updates newElement's text to 'A BAD thing'
