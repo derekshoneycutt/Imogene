@@ -4,14 +4,14 @@
  * @param {any} o Object to get the properties of
  * @returns {string[]} Owned properties of the object
  */
- export const getOwnProperties = (o) => Object.keys(o).filter(v => o.hasOwnProperty(v));
+ const getOwnProperties = (o) => Object.keys(o).filter(v => o.hasOwnProperty(v));
 
 /**
  * Turns a string into camelCase
  * @param {string} str string to camelize
  * @returns {string} camelized string
  */
-export function camelize(str) {
+function camelize(str) {
     return str.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, function (match, index) {
         if (+match === 0) return "";
         return index === 0 ? match.toLowerCase() : match.toUpperCase();
@@ -23,7 +23,7 @@ export function camelize(str) {
  * @param {string} txt Text to create a text node for
  * @returns {HTMLSpanElement} New <span> including the text
  */
- export const createTextNode = (txt) => {
+ const createTextNode = (txt) => {
     /*let span = document.createElement('span');
     span.classList.add('imogene-text-node');
     span.appendChild(document.createTextNode(txt));
@@ -34,31 +34,31 @@ export function camelize(str) {
 /**
  * Flatten a slot element to its assigned nodes
  * @param {HTMLElement} e some element
- * @returns {HTMLElement[]} things
+ * @returns {ImogeneArray} things
  */
-export const flattenSlots = e =>
-    e.tagName === 'SLOT' ?
+const flattenSlots = e =>
+    enhanceElements(e.tagName === 'SLOT' ?
         [].concat(...[...e.assignedNodes()].map(flattenSlots)) :
-        [e];
+        [e]);
 
 /**
  * Run a function once the page has loaded and is ready for processing
  * @param {Function} fn function to run
  * @returns {Promise} Promise that resolves when the function has run
  */
- export const runOnLoad = (fn) =>
- new Promise(
-     document.readyState === 'complete' ?
-         r => r(fn()) :
-         r => {
-             const cb = e => {
-                 r(fn(e));
-                 document.removeEventListener('DOMContentLoaded', cb);
-                 window.removeEventListener('load', cb);
-             };
-             window.addEventListener('load', cb);
-             document.addEventListener('DOMContentLoaded', cb);
-         });
+ const runOnLoad = (fn) =>
+    new Promise(
+        document.readyState === 'complete' ?
+            r => r(fn()) :
+            r => {
+                const cb = e => {
+                    r(fn(e));
+                    document.removeEventListener('DOMContentLoaded', cb);
+                    window.removeEventListener('load', cb);
+                };
+                window.addEventListener('load', cb);
+                document.addEventListener('DOMContentLoaded', cb);
+            });
 
 
 /**
@@ -347,7 +347,7 @@ export class DomBinding {
  * @param {Node | Node[] | NodeList | HTMLCollection} fromElement element to get parent of
  * @returns {Node[]} Array of parent elements
  */
-export const parentElements = (fromElement) => {
+const parentElements = (fromElement) => {
     if (fromElement instanceof Node)
         return [fromElement.parentElement];
     else if (fromElement instanceof Array || fromElement instanceof HTMLCollection || fromElement instanceof NodeList)
@@ -363,7 +363,7 @@ export const parentElements = (fromElement) => {
  * Empty out an element(s)
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to empty out
  */
-export const empty = (el) => {
+const empty = (el) => {
     if (el instanceof Node) {
         while (el.firstChild) {
             el.removeChild(el.firstChild);
@@ -379,7 +379,7 @@ export const empty = (el) => {
  * @param {...any} children The child elements meant to be appended
  * @returns {{ child: any, toappend: any }[]} Preprocessed object describing what to append
  */
-export const preprocChildren = (...children) =>
+const preprocChildren = (...children) =>
     children.reduce((p, child) => {
         if (!child) return p;
         let toappend = null;
@@ -387,7 +387,13 @@ export const preprocChildren = (...children) =>
             toappend = createTextNode(child);
         }
         else if (child instanceof Array) {
-            toappend = makeNode(...child);
+            if (child.___imogeneExtended___)
+                toappend = child;
+            else
+                toappend = makeNode(...child);
+        }
+        else if (child instanceof NodeList || child instanceof HTMLCollection) {
+            toappend = [...child];
         }
         else if (child instanceof Node ||
                  child instanceof NotifyingValue ||
@@ -411,7 +417,7 @@ export const preprocChildren = (...children) =>
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to append to
  * @param {...any} children Children to append to the element
  */
-export const appendChildren = (el, ...children) => {
+const appendChildren = (el, ...children) => {
     if (el instanceof Node) {
         preprocChildren(...children)
             .forEach(child => {
@@ -421,6 +427,9 @@ export const appendChildren = (el, ...children) => {
                     }
                     else if (child.toappend instanceof NotifyingValue) {
                         new DomBinding(child.toappend, el, x => el.appendChild(x));
+                    }
+                    else if (child.toappend instanceof Array) {
+                        child.toappend.forEach(subchild => el.appendChild(subchild));
                     }
                     else if (child.toappend instanceof Object) {
                         setProperties(el, child.toappend);
@@ -442,7 +451,7 @@ export const appendChildren = (el, ...children) => {
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to empty and replace
  * @param {...any} newvals New children to fill 
  */
-export const emptyAndReplace = (el, ...newvals) => {
+const emptyAndReplace = (el, ...newvals) => {
     empty(el);
     appendChildren(el, ...newvals);
 };
@@ -453,7 +462,7 @@ export const emptyAndReplace = (el, ...newvals) => {
  * @param {{}} events Events dictionary to add to the element(s)
  * @returns {Node|Node[]|NodeList|HTMLCollection} The element(s) modified
  */
-export const addEvents = (el, events) => {
+const addEvents = (el, events) => {
     if (el instanceof Node) {
         getOwnProperties(events)
             .forEach(event => el.addEventListener(event, events[event]));
@@ -470,7 +479,7 @@ export const addEvents = (el, events) => {
  * @param {{}} events Events dictionary to add to the element(s)
  * @returns {Node|Node[]|NodeList|HTMLCollection} The element(s) modified
  */
-export const removeEvents = (el, events) => {
+const removeEvents = (el, events) => {
     if (el instanceof Node) {
         getOwnProperties(events)
             .forEach(event => el.removeEventListener(event, events[event]));
@@ -487,7 +496,7 @@ export const removeEvents = (el, events) => {
  * @param {{}} classList Dictionary of classes to set or unset
  * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
  */
-export const setClassList = (el, classList) => {
+const setClassList = (el, classList) => {
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => setClassList(elm, classList));
     }
@@ -517,9 +526,9 @@ export const setClassList = (el, classList) => {
  * @param {string} className class names to add
  * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
  */
-export const addClass = (el, className) => {
+const addClass = (el, className) => {
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
-        el.forEach(elm => addClass(elm, className));
+        [...el].forEach(elm => addClass(elm, className));
     }
     else {
         className.split(' ')
@@ -530,12 +539,30 @@ export const addClass = (el, className) => {
 };
 
 /**
+ * Remove CSS class(es) from node(s)
+ * @param {Node|Node[]|NodeList|HTMLCollection} el element to add classes to
+ * @param {string} className class names to add
+ * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
+ */
+const removeClass = (el, className) => {
+    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
+        [...el].forEach(elm => removeClass(elm, className));
+    }
+    else {
+        className.split(' ')
+            .filter(c => c && c !== '')
+            .forEach(c => el.classList.remove(c));
+    }
+    return el;
+}
+
+/**
  * Set CSS style values
  * @param {Node|Node[]|NodeList|HTMLCollection} el element(s) to modify style on
  * @param {{}} styleObj Dictionary of CSS styles to modify
  * @returns {{}|{}[]} Previous style values that were changed
  */
-export const setStyle = (el, styleObj) => {
+const setStyle = (el, styleObj) => {
     let ret = {};
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         ret = [...el].map(elm => setStyle(elm, styleObj));
@@ -601,7 +628,7 @@ const setProperty = (el, prop, value) => {
  * @param {{}} props Dictionary of properties to modify
  * @returns {HTMLElment|HTMLElement[]|HTMLCollection} element(s) that have been modified
  */
-export const setProperties = (el, props) => {
+const setProperties = (el, props) => {
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => setProperties(elm, props));
     }
@@ -619,21 +646,25 @@ export const setProperties = (el, props) => {
  * Make a new DOM node
  * @param {string} name The name of the type of element to create
  * @param {...any} children The children to add to the new element
- * @returns {HTMLElment} A newly created element
+ * @returns {ImogeneArray} A newly created element
  */
-export const makeNode = (name, ...children) => {
+const makeNode = (name, ...children) => {
     let newNode = name instanceof Node ? name : document.createElement(name);
     appendChildren(newNode, ...children);
-    return newNode;
+    return enhanceElements([newNode]);
 };
 
 /**
  * Get or Set a property on an array of elements or a single element
- * @param {Node | Node[]} array Array of (or single) Nodes to act on
+ * @param {Node|NodeList|HTMLCollection|Node[]} array Array of (or single) Nodes to act on
  * @param {string} prop Name of property to act on
  * @param {...any} val Value, with first being one to set to property, or none to get the current property w/o setting
  */
-export const property = (array, prop, ...val) => {
+const property = (array, prop, ...val) => {
+    if (array instanceof Node)
+        return property([array], prop, ...val);
+    else if (array instanceof NodeList || array instanceof HTMLCollection)
+        return property([...array], prop, ...val);
     if (array.length < 1) return;
     let ret = array[0][prop];
     if (val.length >= 1) {
@@ -672,23 +703,23 @@ export const property = (array, prop, ...val) => {
 
 /**
  * Remove nodes from the UI
- * @param {Node | Node[]} nodeArray Node(s) to remove from the UI
+ * @param {Node | Node[] | NodeList | HTMLCollection} nodeArray Node(s) to remove from the UI
  */
-export const removeNode = (nodeArray) => {
-    if (nodeArray instanceof Array)
-        nodeArray.forEach(removeNode(nodeArray));
-    else
+const removeNode = (nodeArray) => {
+    if (nodeArray instanceof Array || nodeArray instanceof NodeList || nodeArray instanceof HTMLCollection)
+        [...nodeArray].forEach(removeNode(nodeArray));
+    else if (nodeArray instanceof Node)
         nodeArray.remove();
     return nodeArray;
 };
 
 /**
  * Insert nodes before another in a DOM tree
- * @param {Node | Node[]} node Node or array of Nodes to insert new nodes before
+ * @param {Node | Node[] | NodeList | HTMLCollection} node Node or array of Nodes to insert new nodes before
  * @param {...(string | Node)} nodes New nodes to insert before existing nodes
  */
-export const insertBefore = (node, ...nodes) => {
-    if (node instanceof Array) {
+const insertBefore = (node, ...nodes) => {
+    if (node instanceof Array || node instanceof NodeList || node instanceof HTMLCollection) {
         if (node.length > 0)
             insertBefore(node[0], ...nodes);
     }
@@ -713,11 +744,11 @@ export const insertBefore = (node, ...nodes) => {
 
 /**
  * Insert nodes after another in a DOM tree
- * @param {Node | Node[]} node Node or array of Nodes to insert new nodes after
+ * @param {Node | Node[] | NodeList | HTMLCollection} node Node or array of Nodes to insert new nodes after
  * @param {...(string | Node)} nodes New nodes to insert after existing nodes
  */
-export const insertAfter = (node, ...nodes) => {
-    if (node instanceof Array) {
+const insertAfter = (node, ...nodes) => {
+    if (node instanceof Array || node instanceof NodeList || node instanceof HTMLCollection) {
         if (node.length > 0)
             insertAfter(node[node.length - 1], ...nodes);
     }
@@ -747,20 +778,20 @@ export const insertAfter = (node, ...nodes) => {
  * @param {string[]} query Any queries to run
  */
 const findChildrenSingleParent = (parentEl, ...query) =>
-        query
-            .map(q =>
-                [...parentEl.querySelectorAll(q)])
-            .reduce((p, c) => {
-                p.push(...c);
-                return p;
-            }, []);
+    query
+        .map(q =>
+            [...parentEl.querySelectorAll(q)])
+        .reduce((p, c) => {
+            p.push(...c);
+            return p;
+        }, []);
 
 /**
  * Find the matching children of a parent element or elements
  * @param {Node | Node[] | NodeList | HTMLCollection} parentEl parent element
  * @param {string[]} query Any queries to run
  */
-export const findChildren = (parentEl, ...query) => 
+const findChildren = (parentEl, ...query) => 
     parentEl instanceof Node ?
         enhanceElements(findChildrenSingleParent(parentEl, ...query))
     :   parentEl instanceof Array || 
@@ -775,8 +806,6 @@ export const findChildren = (parentEl, ...query) =>
                         return p;
                     }, []))
         :   null;
-
-
 
 /**
  * @typedef {Object} ImogeneArrayBase
@@ -805,7 +834,7 @@ export const findChildren = (parentEl, ...query) =>
  * @param {ImogeneArray} array array to enhance
  * @returns {ImogeneArray} enhanced array
  */
-export const enhanceElements = (array) => {
+const enhanceElements = (array) => {
     if (array instanceof Array) {
         let extendWith = {
             empty: () => empty(array),
@@ -817,6 +846,7 @@ export const enhanceElements = (array) => {
             removeEvents: (events) => removeEvents(array, events),
             setClassList: (classList) => setClassList(array, classList),
             addClass: (className) => addClass(array, className),
+            removeClass: (className) => removeClass(array, className),
             setStyle: (styles) => setStyle(array, styles),
             setProperties: (props) => setProperties(array, props),
 
@@ -846,13 +876,13 @@ export const enhanceElements = (array) => {
 /** Make an empty Imogene Element Array
  * @returns {ImogeneArray}
  */
-export const makeEmpty = () => enhanceElements([]);
+const makeEmpty = () => enhanceElements([]);
 
 /** Find all elements that match a given set of queries
  * @param {string[]} query Queries to run search for (see querySelectorAll)
  * @returns {ImogeneArray}
  */
-export const findElements = (...query) =>
+const findElements = (...query) =>
     enhanceElements(
         query
             .map(q =>
@@ -868,7 +898,7 @@ export const findElements = (...query) =>
   * Create a new events handler object
   * @returns {EventsHandler} a new events handler object
   */
- export const event = () => new EventsHandler();
+ const event = () => new EventsHandler();
 
  /**
   * Create a new notifying value object
@@ -876,7 +906,7 @@ export const findElements = (...query) =>
   * @param {Function} [t] translation function
   * @returns {NotifyingValue} a new notifying value object containing the value
   */
-  export const value = (v, t) => new NotifyingValue(v, t);
+  const value = (v, t) => new NotifyingValue(v, t);
  
   /**
    * Create a new array of notifying values
@@ -884,7 +914,7 @@ export const findElements = (...query) =>
    * @param {Function} g Getter for initial values
    * @returns {NotifyingValue[]} Newly created array
    */
-  export const valueArray = (n, g = (i) => i) => {
+  const valueArray = (n, g = (i) => i) => {
       let ret = [];
       for (let i = 0; i < n; ++i) {
           ret.push(value(g(i)));
@@ -899,7 +929,7 @@ export const findElements = (...query) =>
  * @param {(x: HTMLElement) => void} [insert] method used to insert DOM elements
  * @param {Array} [exist] Any existing elements to replace, if applicable
  */
- export const bind = 
+ const bind = 
     (value, container, insert = (x => container.appendChild(x)), exist = null) =>
         new DomBinding(value, container, insert, exist);
  
@@ -924,6 +954,7 @@ export const findElements = (...query) =>
      removeEvents: removeEvents,
      setClassList: setClassList,
      addClass: addClass,
+     removeClass: removeClass,
      setStyle: setStyle,
      setProperties: setProperties,
  

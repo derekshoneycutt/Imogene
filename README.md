@@ -61,7 +61,7 @@ _ = {
     event: () => EventHandler, // Construct a new EventHandler that can listen to and run events
     value: (initial, [(in) => out]) => NotifyingValue, // Creates a NotifyingValue for binding in DOM 
     valueArray: (size, default) => NotifyingValue[], // Create an array of NotifyingValues for binding in DOM
-    bind: (any, HTMLElement, [insert: (x: HTMLElement) => void], [exist: Array]) => DomBinding, // create a new dom binding (this can be useful but easier to just create a value and add it as a child with methods below, tbh)
+    bind: (bindValue: any, container: HTMLElement[, insert: (newvalue: HTMLElement) => void][, exist: Array]) => DomBinding, // create a new dom binding from a value to a container, optionally including a custom insert function and pointer to existing array of elements representing the binding, if any
 	
     parentElements: (Node|Node[]) => Node[], // Get direct parent elements of nodes
     empty: (Node|Node[]) => void, // empty out elements
@@ -72,10 +72,11 @@ _ = {
     removeEvents: (Node|Node[], {}) => Node|Node[], // Remove event listeners from an element
     setClassList: (Node|Node[], {}) => Node|Node[], // Set the class list to t
     addClass: (Node|Node[], string) => Node|Node[], // add CSS classes to the nodes
+    removeClass: (Node|Node[], string) => Node|Node[], // remove CSS classes from the nodes
     setStyle: (Node|Node[], {}) => [], // Set CSS Styles to nodes
     setProperties: (Node|Node[], {}) => any, // Set HTML Attributes on nodes
 
-    make: (elementName, [{properties}], ...children) => Node[], // Make new DOM elementsstring array
+    make: (elementName, [{properties}], ...children) => Node[], // Make new DOM elements from array
     makeEmpty: () => Node[], // make an empty array of nodes (sometimes useful)
     enhance: (Node[]) => Node[], // enhance an array of nodes with additional functionality (see below)
 
@@ -92,7 +93,7 @@ _ = {
 
 The functions used to find and modify DOM elements often return an array of elements that is extended with additional functionality. Basically, any function returning Node[] explicitly will have that array enhanced. The `$_.enhance` method will also enhance an existing array of nodes with this same functionality upon request. Some code elaboration:
 ```javascript
-const checkbox = $('#mycheckbox');
+const checkbox = $_.find('#mycheckbox');
 
 //checkbox is now an array, as returned from document.querySelectorAll, with the additional extended methods:
 const checkbox_extended = {
@@ -104,6 +105,7 @@ const checkbox_extended = {
 	removeEvents: ({}) => checkbox, // reverse of addEvents
 	setClassList: ({}) => checkbox, // sets class list; property names of passed object is names of classes, values should be true/false
 	addClass: className => checkbox, // add a space-separated list of CSS classes to the elements
+	removeClass: className => checkbox, // remove a space-separated list of CSS classes from the elements
 	setStyle: ({}) => [], // Set CSS styles; property names of passed object is CSS property
 	setProperties: ({}) => any, // Set HTML attributes as properties
 	prop: (name, ...val) => any, // Get or set a single JS property of the first element in the array
@@ -154,6 +156,19 @@ myGoodValue.addListener(myEventHandler);
 myGoodValue.forceTrigger(); // shows alert: 'Showing A BAD thing'
 myGoodValue.removeListener(myEventHandler);
 myGoodValue.clearEvents(); // Breaks DOM binding!
+
+// another simple example:
+const doHideDiv = $_.value(false);
+const divTitle = $_.value('a tooltip text for my div!');
+const myExisting = $_.find('#my-div');
+myExisting.setProperties({
+	classList: { hidden: doHideDiv },
+	title: divTitle
+}); // note: could just use setClassList directly, too, but since doing both...
+// ...
+divTitle.set('a different tooltip text!');
+// ...
+doHideDiv.set(true); // if 'hidden' class makes 
 ```
 
 There is a `DomBinding` class, but it is not advised to use this directly. Instead, use the exported methods through the `$_` extended DOM methods. The `$_` includes a `bind` method which creates the `DomBinding` class, but you should spend some time studying the code and understanding it before using. Simply appending a `NotifyingValue` with `make`, `setProperties`, `appendChildren`, `emptyAndReplace`, `insertBefore`, and `insertAfter` all create this binding in more obvious manners.
