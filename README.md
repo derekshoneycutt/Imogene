@@ -36,7 +36,7 @@ const myNestedCheckboxSame = $_.findChildren('#mycontainer', '#mycheckbox');
 const myContainer = $("#mycontainer");
 const anotherNestedCheckbox = $(myContainer, '#mycheckbox');
 const anotherNestedCheckboxSame = myContainer.find('#mycheckbox');
-const alsoMyContainer $_.find('#mycontainer);
+const alsoMyContainer $_.find('#mycontainer');
 const thatSameNestedCheckbox = alsoMyContainer.find('#mycheckbox');
 const stillSameNestedCheckbox = $_.findChildren(alsoMyContainer, '#mycheckbox');
 
