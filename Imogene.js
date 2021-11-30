@@ -261,7 +261,7 @@ export class DomBinding {
                 this.#current.#current.replaceWith(tempSpan);
             else
                 this.#insert(tempSpan);
-            this.#current.#hideAll();
+            //this.#current.#hideAll();
         }
         else
             this.#insert(tempSpan);
@@ -321,7 +321,7 @@ export class DomBinding {
                 this.#current.replaceWith(...dowith.doms);
             else
                 dowith.doms.forEach(dom => this.#insert(dom));
-            this.#current = dowith.doms;
+            //this.#current = dowith.doms;
         }
         this.#current = dowith.curr;
 
