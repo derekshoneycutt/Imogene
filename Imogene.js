@@ -19,19 +19,6 @@ function camelize(str) {
 }
 
 /**
- * Create a new text element to insert into HTML document
- * @param {string} txt Text to create a text node for
- * @returns {HTMLSpanElement} New <span> including the text
- */
- const createTextNode = (txt) => {
-    /*let span = document.createElement('span');
-    span.classList.add('imogene-text-node');
-    span.appendChild(document.createTextNode(txt));
-    return span;*/
-    return document.createTextNode(txt);
-};
-
-/**
  * Flatten a slot element to its assigned nodes
  * @param {HTMLElement} e some element
  * @returns {ImogeneArray} things
@@ -234,6 +221,32 @@ export class DomBinding {
             this.value.removeListener(this.#replace);
     }
 
+    /**
+     * Perform a replaceWith on the current node, whatever it is
+     * @param {...any} replaceWith
+     */
+    #doReplaceWith(...replaceWith) {
+        if (this.#current instanceof HTMLElement)
+            this.#current.replaceWith(...replaceWith);
+        else if (this.#current instanceof Node) {
+            replaceWith.forEach(replacement =>
+                this.#current.parentElement.insertBefore(replacement, this.#current));
+            this.#current.parentElement.removeChild(this.#current);
+        }
+        else if (this.#current instanceof DomBinding) {
+            this.#current.#reduceCurrent();
+            this.#current = this.#current.#current;
+            this.#doReplaceWith(...replaceWith);
+        }
+        else if (this.#current instanceof Array) {
+            this.#reduceCurrent();
+            this.#doReplaceWith(...replaceWith);
+        }
+        else {
+            replaceWith.forEach(replacement => this.#insert(replacement));
+        }
+    }
+
     /** Reduce the current rendered DOM down to a single element */
     #reduceCurrent = () => {
         if (this.#current && this.#current instanceof Array) {
@@ -241,30 +254,21 @@ export class DomBinding {
                 if (p) {
                     if (v instanceof HTMLElement)
                         v.remove();
+                    else if (v instanceof Node)
+                        v.parentElement.removeChild(v);
                     else if (v instanceof DomBinding)
                         v.#hideAll();
                     return p;
                 }
-                if (v instanceof HTMLElement || v instanceof DomBinding)
+                if (v instanceof Node || v instanceof DomBinding)
                     return v;
                 return null;
             }, null);
         }
         if (!this.#current) return;
 
-        let tempSpan = createTextNode('');
-        if (this.#current instanceof HTMLElement)
-            this.#current.replaceWith(tempSpan);
-        else if (this.#current instanceof DomBinding) {
-            this.#current.#reduceCurrent();
-            if (this.#current.#current)
-                this.#current.#current.replaceWith(tempSpan);
-            else
-                this.#insert(tempSpan);
-            //this.#current.#hideAll();
-        }
-        else
-            this.#insert(tempSpan);
+        let tempSpan = document.createTextNode('');
+        this.#doReplaceWith(tempSpan);
         this.#current = tempSpan;
     }
 
@@ -288,7 +292,7 @@ export class DomBinding {
                     p.curr.push(v.toappend);
                 }
                 else if (v.toappend instanceof NotifyingValue) {
-                    let textdom = createTextNode('');
+                    let textdom = document.createTextNode('');
                     let bind = new DomBinding(v.toappend, this.#container, this.#insert, textdom, false);
                     p.doms.push(textdom);
                     p.binds.push(bind);
@@ -317,11 +321,7 @@ export class DomBinding {
             setProperties(this.#container, dowith.props);
 
         if (dowith.doms.length > 0) {
-            if (this.#current)
-                this.#current.replaceWith(...dowith.doms);
-            else
-                dowith.doms.forEach(dom => this.#insert(dom));
-            //this.#current = dowith.doms;
+            this.#doReplaceWith(...dowith.doms);
         }
         this.#current = dowith.curr;
 
@@ -384,7 +384,7 @@ const preprocChildren = (...children) =>
         if (!child) return p;
         let toappend = null;
         if (typeof child === 'string') {
-            toappend = createTextNode(child);
+            toappend = document.createTextNode(child);
         }
         else if (child instanceof Array) {
             if (child.___imogeneExtended___)
@@ -401,7 +401,7 @@ const preprocChildren = (...children) =>
             toappend = child;
         }
         else {
-            toappend = createTextNode(child);
+            toappend = document.createTextNode(child);
         }
 
         p.push({
