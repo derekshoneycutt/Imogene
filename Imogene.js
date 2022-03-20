@@ -707,7 +707,7 @@ const property = (array, prop, ...val) => {
  */
 const removeNode = (nodeArray) => {
     if (nodeArray instanceof Array || nodeArray instanceof NodeList || nodeArray instanceof HTMLCollection)
-        [...nodeArray].forEach(removeNode(nodeArray));
+        [...nodeArray].forEach(item => removeNode(item));
     else if (nodeArray instanceof Node)
         nodeArray.remove();
     return nodeArray;
