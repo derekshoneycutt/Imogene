@@ -19,22 +19,12 @@ function camelize(str) {
 }
 
 /**
- * Flatten a slot element to its assigned nodes
- * @param {HTMLElement} e some element
- * @returns {ImogeneArray} things
- */
-const flattenSlots = e =>
-    enhanceElements(e.tagName === 'SLOT' ?
-        [].concat(...[...e.assignedNodes()].map(flattenSlots)) :
-        [e]);
-
-/**
  * Run a function once the page has loaded and is ready for processing
  * @param {Function} fn function to run
  * @returns {Promise} Promise that resolves when the function has run
  */
- const runOnLoad = (fn) =>
-    new Promise(
+function runOnLoad(fn) {
+    return new Promise(
         document.readyState === 'complete' ?
             r => r(fn()) :
             r => {
@@ -46,7 +36,7 @@ const flattenSlots = e =>
                 window.addEventListener('load', cb);
                 document.addEventListener('DOMContentLoaded', cb);
             });
-
+}
 
 /**
  * @callback imogeneListener
@@ -119,7 +109,7 @@ export class NotifyingValue {
     /**
      * Construct a new notifying value
      * @param {any} value Value to house in the object
-     * @param {NVTranslate} [translator] Translator to translate the 
+     * @param {NVTranslate} [translator] Translator to translate the value on updates
      */
     constructor(value, translator = x => x) {
         this.#value = value;
@@ -131,7 +121,7 @@ export class NotifyingValue {
      * @returns {any} The current value
      */
     get() {
-        return this.#value;
+        return this.#translator(this.#value);
     }
 
     /**
@@ -178,12 +168,15 @@ export class NotifyingValue {
     }
 }
 
-
 /** Used for handling a binding with a NotifyingValue (or just mapping to any element) in DOM */
 export class DomBinding {
+    /** @type {HTMLElement} */
     #container = null;
+    /** @type {DomBinding} */
     #current = null;
+    /** @type {NotifyingValue} */
     #value = null;
+    /** @type {(x: HTMLElement) => void} */
     #insert = null;
 
     /**
@@ -205,7 +198,7 @@ export class DomBinding {
     }
 
     /** Hide any currently shown elements */
-    #hideAll = () => {
+    #hideAll() {
         hideOne = c => {
             if (c instanceof HTMLElement)
                 c.remove();
@@ -217,8 +210,8 @@ export class DomBinding {
         else if (this.current)
             hideOne(this.current);
         this.current = null;
-        if (this.value instanceof NotifyingValue)
-            this.value.removeListener(this.#replace);
+        if (this.#value instanceof NotifyingValue)
+            this.#value.removeListener(this.#replace);
     }
 
     /**
@@ -242,13 +235,12 @@ export class DomBinding {
             this.#reduceCurrent();
             this.#doReplaceWith(...replaceWith);
         }
-        else {
+        else
             replaceWith.forEach(replacement => this.#insert(replacement));
-        }
     }
 
     /** Reduce the current rendered DOM down to a single element */
-    #reduceCurrent = () => {
+    #reduceCurrent() {
         if (this.#current && this.#current instanceof Array) {
             this.#current = this.#current.reduce((p, v) => {
                 if (p) {
@@ -275,9 +267,9 @@ export class DomBinding {
     /**
      * Get the replacement for a new value
      * @param {any} replaceWith New values to replace DOM with
-     * @returns {{ doms: [], props: {}, binds: [], curr: [] }} Description of replacement for binding
+     * @returns {{ doms: [], props: {}, binds: DomBinding[], curr: [] }} Description of replacement for binding
      */
-    #getReplacement = (replaceWith) => {
+    #getReplacement(replaceWith) {
         let newarr = [];
         if (replaceWith instanceof Array || replaceWith instanceof HTMLCollection ||
             replaceWith instanceof NodeList)
@@ -285,24 +277,22 @@ export class DomBinding {
         else
             newarr = [replaceWith];
 
-        let dowith = preprocChildren(...newarr)
-            .reduce((p, v) => {
-                if (v.toappend instanceof Node) {
-                    p.doms.push(v.toappend);
-                    p.curr.push(v.toappend);
-                }
-                else if (v.toappend instanceof NotifyingValue) {
-                    let textdom = document.createTextNode('');
-                    let bind = new DomBinding(v.toappend, this.#container, this.#insert, textdom, false);
-                    p.doms.push(textdom);
-                    p.binds.push(bind);
-                    p.curr.push(bind);
-                }
-                else if (v.toappend instanceof Object) {
-                    Object.assign(p.props, v.toappend);
-                }
-                return p;
-            }, { doms: [], props: {}, binds: [], curr: [] });
+        let dowith = preprocChildren(...newarr).reduce((p, v) => {
+            if (v.toappend instanceof Node) {
+                p.doms.push(v.toappend);
+                p.curr.push(v.toappend);
+            }
+            else if (v.toappend instanceof NotifyingValue) {
+                let textdom = document.createTextNode('');
+                let bind = new DomBinding(v.toappend, this.#container, this.#insert, textdom, false);
+                p.doms.push(textdom);
+                p.binds.push(bind);
+                p.curr.push(bind);
+            }
+            else if (v.toappend instanceof Object)
+                Object.assign(p.props, v.toappend);
+            return p;
+        }, { doms: [], props: {}, binds: [], curr: [] });
 
         return dowith;
     }
@@ -312,7 +302,7 @@ export class DomBinding {
      * @param {any} replaceWith the new value to replace the DOM with
      * @returns {[]} The newly rendered DOM
      */
-    #replace = (replaceWith) => {
+    #replace(replaceWith) {
         this.#reduceCurrent();
 
         let dowith = this.#getReplacement(replaceWith);
@@ -320,9 +310,8 @@ export class DomBinding {
         if (getOwnProperties(dowith.props).length > 0)
             setProperties(this.#container, dowith.props);
 
-        if (dowith.doms.length > 0) {
+        if (dowith.doms.length > 0)
             this.#doReplaceWith(...dowith.doms);
-        }
         this.#current = dowith.curr;
 
         dowith.binds.forEach(bind => bind.#create());
@@ -331,13 +320,13 @@ export class DomBinding {
     }
 
     /** Create the DOM node and show it */
-    #create = () => {
+    #create() {
         if (this.#value instanceof NotifyingValue) {
             this.#value.addListener(v => window.requestAnimationFrame(() => this.#replace(v)));
             this.#value.forceTrigger();
         }
         else
-            this.#replace(this.value);
+            this.#replace(this.#value);
     }
 }
 
@@ -347,10 +336,11 @@ export class DomBinding {
  * @param {Node | Node[] | NodeList | HTMLCollection} fromElement element to get parent of
  * @returns {Node[]} Array of parent elements
  */
-const parentElements = (fromElement) => {
+function parentElements(fromElement) {
     if (fromElement instanceof Node)
         return [fromElement.parentElement];
-    else if (fromElement instanceof Array || fromElement instanceof HTMLCollection || fromElement instanceof NodeList)
+    else if (fromElement instanceof Array || fromElement instanceof HTMLCollection ||
+            fromElement instanceof NodeList)
         return [...fromElement].reduce((ret, el) => {
             ret.push(...parentElements(el));
             return ret;
@@ -363,15 +353,14 @@ const parentElements = (fromElement) => {
  * Empty out an element(s)
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to empty out
  */
-const empty = (el) => {
+function empty(el) {
     if (el instanceof Node) {
         while (el.firstChild) {
             el.removeChild(el.firstChild);
         }
     }
-    else if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
+    else if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection)
         [...el].forEach(e => empty(e));
-    }
 };
 
 /**
@@ -379,79 +368,68 @@ const empty = (el) => {
  * @param {...any} children The child elements meant to be appended
  * @returns {{ child: any, toappend: any }[]} Preprocessed object describing what to append
  */
-const preprocChildren = (...children) =>
-    children.reduce((p, child) => {
+function preprocChildren(...children) {
+    return children.reduce((p, child) => {
         if (!child) return p;
         let toappend = null;
-        if (typeof child === 'string') {
+        if (typeof child === 'string')
             toappend = document.createTextNode(child);
-        }
         else if (child instanceof Array) {
             if (child.___imogeneExtended___)
                 toappend = child;
             else
                 toappend = makeNode(...child);
         }
-        else if (child instanceof NodeList || child instanceof HTMLCollection) {
+        else if (child instanceof NodeList || child instanceof HTMLCollection)
             toappend = [...child];
-        }
         else if (child instanceof Node ||
                  child instanceof NotifyingValue ||
-                 child instanceof Object) {
+                 child instanceof Object)
             toappend = child;
-        }
-        else {
+        else
             toappend = document.createTextNode(child);
-        }
 
         p.push({
             child: child,
             toappend: toappend
         });
-
         return p;
     }, []);
+}
 
 /**
  * Append children to a node (if array, appends to the first Node)
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to append to
  * @param {...any} children Children to append to the element
  */
-const appendChildren = (el, ...children) => {
+function appendChildren(el, ...children) {
     if (el instanceof Node) {
-        preprocChildren(...children)
-            .forEach(child => {
-                if (child.toappend) {
-                    if (child.toappend instanceof Node) {
-                        el.appendChild(child.toappend);
-                    }
-                    else if (child.toappend instanceof NotifyingValue) {
-                        new DomBinding(child.toappend, el, x => el.appendChild(x));
-                    }
-                    else if (child.toappend instanceof Array) {
-                        child.toappend.forEach(subchild => el.appendChild(subchild));
-                    }
-                    else if (child.toappend instanceof Object) {
-                        setProperties(el, child.toappend);
-                    }
-                }
-            });
+        preprocChildren(...children).forEach(child => {
+            if (child.toappend) {
+                if (child.toappend instanceof Node)
+                    el.appendChild(child.toappend);
+                else if (child.toappend instanceof NotifyingValue)
+                    new DomBinding(child.toappend, el, x => el.appendChild(x));
+                else if (child.toappend instanceof Array)
+                    child.toappend.forEach(subchild => el.appendChild(subchild));
+                else if (child.toappend instanceof Object)
+                    setProperties(el, child.toappend);
+            }
+        });
     }
     else if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
-        /** @type {Node[]} */
         const nodes = [...el].filter(e => e instanceof Node);
-        if (nodes.length > 0) {
+        if (nodes.length > 0)
             appendChildren(nodes[0], ...children);
-        }
     }
 };
 
 /**
  * Empty the contents of an element and replace it with new children
  * @param {Node|Node[]|NodeList|HTMLCollection} el element to empty and replace
- * @param {...any} newvals New children to fill 
+ * @param {...any} newvals New children to fill with
  */
-const emptyAndReplace = (el, ...newvals) => {
+function emptyAndReplace(el, ...newvals) {
     empty(el);
     appendChildren(el, ...newvals);
 };
@@ -462,10 +440,9 @@ const emptyAndReplace = (el, ...newvals) => {
  * @param {{}} events Events dictionary to add to the element(s)
  * @returns {Node|Node[]|NodeList|HTMLCollection} The element(s) modified
  */
-const addEvents = (el, events) => {
+function addEvents(el, events) {
     if (el instanceof Node) {
-        getOwnProperties(events)
-            .forEach(event => el.addEventListener(event, events[event]));
+        getOwnProperties(events).forEach(event => el.addEventListener(event, events[event]));
     }
     else if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => addEvents(elm, events));
@@ -479,10 +456,9 @@ const addEvents = (el, events) => {
  * @param {{}} events Events dictionary to add to the element(s)
  * @returns {Node|Node[]|NodeList|HTMLCollection} The element(s) modified
  */
-const removeEvents = (el, events) => {
+function removeEvents(el, events) {
     if (el instanceof Node) {
-        getOwnProperties(events)
-            .forEach(event => el.removeEventListener(event, events[event]));
+        getOwnProperties(events).forEach(event => el.removeEventListener(event, events[event]));
     }
     else if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => removeEvents(elm, events));
@@ -496,29 +472,66 @@ const removeEvents = (el, events) => {
  * @param {{}} classList Dictionary of classes to set or unset
  * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
  */
-const setClassList = (el, classList) => {
+function setClassList(el, classList) {
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => setClassList(elm, classList));
     }
     else {
-        getOwnProperties(classList)
-            .forEach(key => {
-                const doset = b => {
-                    if (b) el.classList.add(key);
-                    else el.classList.remove(key);
-                };
-                let setvalue = classList[key];
-                if (setvalue instanceof NotifyingValue) {
-                    setvalue.addListener(v => window.requestAnimationFrame(() => doset(!!v)));
-                    setvalue.forceTrigger();
-                }
-                else {
-                    doset(!!setvalue);
-                }
-            });
+        getOwnProperties(classList).forEach(key => {
+            const doset = b => {
+                if (b) el.classList.add(key);
+                else el.classList.remove(key);
+            };
+            let setvalue = classList[key];
+            if (setvalue instanceof NotifyingValue) {
+                setvalue.addListener(v => window.requestAnimationFrame(() => doset(!!v)));
+                setvalue.forceTrigger();
+            }
+            else {
+                doset(!!setvalue);
+            }
+        });
     }
     return el;
 };
+
+/** Class defining binding to the class list of an element */
+export class DomClassBinding {
+    /** @type {NotifyingValue} */
+    #value = null;
+    /** @type {HTMLElement} */
+    #element = null;
+    /** @type {string[]} */
+    #currentList = [];
+
+    /**
+     * Create a new binding specific to a class list
+     * @param {NotifyingValue} value Value to bind to the DOM
+     * @param {HTMLElement} element The DOM element to bind to the class of
+     * @param {boolean} doset Whether to set the class list to the value immediately
+     */
+    constructor(value, element, doset) {
+        this.#value = value;
+        this.#element = element;
+
+        this.#value.addListener(v => window.requestAnimationFrame(() => this.#replace(v)));
+        if (doset)
+            this.#value.forceTrigger();
+    }
+
+    /**
+     * Replace the class list with a new class list
+     * @param {string} newValue The new classes to have in the class list
+     */
+    #replace(newValue) {
+        var newClasses = newValue.split(' ');
+        this.#currentList.filter(c => !newClasses.includes(c))
+            .forEach(c => this.#element.classList.remove(c));
+        newClasses.filter(c => !this.#currentList.includes(c))
+            .forEach(c => this.#element.classList.add(c));
+        this.#currentList = newClasses;
+    }
+}
 
 /**
  * Add CSS class(es) to node(s)
@@ -526,14 +539,17 @@ const setClassList = (el, classList) => {
  * @param {string} className class names to add
  * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
  */
-const addClass = (el, className) => {
+function addClass(el, className) {
     if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
         [...el].forEach(elm => addClass(elm, className));
     }
     else {
-        className.split(' ')
-            .filter(c => c && c !== '')
-            .forEach(c => el.classList.add(c));
+        if (className instanceof NotifyingValue)
+            new DomClassBinding(className, el, true);
+        else
+            className.split(' ')
+                .filter(c => c && c !== '')
+                .forEach(c => el.classList.add(c));
     }
     return el;
 };
@@ -544,15 +560,13 @@ const addClass = (el, className) => {
  * @param {string} className class names to add
  * @returns {Node|Node[]|NodeList|HTMLCollection} Modified node(s)
  */
-const removeClass = (el, className) => {
-    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
+function removeClass(el, className) {
+    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection)
         [...el].forEach(elm => removeClass(elm, className));
-    }
-    else {
+    else
         className.split(' ')
             .filter(c => c && c !== '')
             .forEach(c => el.classList.remove(c));
-    }
     return el;
 }
 
@@ -562,12 +576,11 @@ const removeClass = (el, className) => {
  * @param {{}} styleObj Dictionary of CSS styles to modify
  * @returns {{}|{}[]} Previous style values that were changed
  */
-const setStyle = (el, styleObj) => {
+function setStyle(el, styleObj) {
     let ret = {};
-    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
+    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection)
         ret = [...el].map(elm => setStyle(elm, styleObj));
-    }
-    else {
+    else
         ret = getOwnProperties(styleObj)
             .reduce((ret, style) => {
                 ret[style] = el.style.getPropertyValue(style);
@@ -576,12 +589,10 @@ const setStyle = (el, styleObj) => {
                     currStyle.addListener(v => window.requestAnimationFrame(() => el.style.setProperty(style, v)));
                     currStyle.forceTrigger();
                 }
-                else {
+                else
                     el.style.setProperty(style, styleObj[style]);
-                }
                 return ret;
             }, {});
-    }
     return ret;
 };
 
@@ -591,35 +602,29 @@ const setStyle = (el, styleObj) => {
  * @param {string} prop name of the property to modify
  * @param {NotifyingValue|string} value value of the property to set
  */
-const setProperty = (el, prop, value) => {
-    if (typeof value === 'undefined') {
+function setProperty(el, prop, value) {
+    if (typeof value === 'undefined')
         el.removeAttribute(prop);
-    }
     else if (value instanceof NotifyingValue) {
         value.addListener(v => window.requestAnimationFrame(() => setProperty(el, prop, v)));
         value.forceTrigger();
     }
-    else if (prop === 'on') {
+    else if (prop === 'on')
         addEvents(el, value);
-    }
-    else if (prop === 'class') {
+    else if (prop === 'class')
         addClass(el, value);
-    }
-    else if (prop === 'classList') {
+    else if (prop === 'classList')
         setClassList(el, value);
-    }
     else if (prop === 'style') {
         if (typeof value === 'string')
             el.setAttribute(prop, value);
         else
             setStyle(el, value);
     }
-    else if (prop === 'innerHTML') {
+    else if (prop === 'innerHTML')
         el.innerHTML = value;
-    }
-    else {
+    else
         el.setAttribute(prop, value);
-    }
 };
 
 /**
@@ -628,19 +633,36 @@ const setProperty = (el, prop, value) => {
  * @param {{}} props Dictionary of properties to modify
  * @returns {HTMLElment|HTMLElement[]|HTMLCollection} element(s) that have been modified
  */
-const setProperties = (el, props) => {
-    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection) {
+function setProperties(el, props) {
+    if (el instanceof Array || el instanceof NodeList || el instanceof HTMLCollection)
         [...el].forEach(elm => setProperties(elm, props));
-    }
-    else {
+    else
         getOwnProperties(props)
             .forEach(key => {
                 let value = props[key];
                 setProperty(el, key, value);
             });
-    }
     return el;
 };
+
+/** Object used to specify in makeNode that  */
+const fragmentUnifier = { __DOMFRAGMENT__: true };
+
+/**
+ * Unify elements into a single ImogeneArray
+ * @param  {...(Node|Array)} children The children elements to unify
+ */
+function unifyFragments(...children) {
+    return enhanceElements(preprocChildren(children)
+        .reduce((p, c) => {
+            if (c.toappend) {
+                if (c.toappend instanceof Node)
+                    p.push(c.toappend);
+                else if (c.toappend instanceof Array)
+                    p.push(...c.toappend);
+            }
+        }, []));
+}
 
 /**
  * Make a new DOM node
@@ -648,10 +670,14 @@ const setProperties = (el, props) => {
  * @param {...any} children The children to add to the new element
  * @returns {ImogeneArray} A newly created element
  */
-const makeNode = (name, ...children) => {
-    let newNode = name instanceof Node ? name : document.createElement(name);
-    appendChildren(newNode, ...children);
-    return enhanceElements([newNode]);
+function makeNode(name, ...children) {
+    if (name === fragmentUnifier)
+        return unifyFragments(...children);
+    else {
+        let newNode = name instanceof Node ? name : document.createElement(name);
+        appendChildren(newNode, ...children);
+        return enhanceElements([newNode]);
+    }
 };
 
 /**
@@ -660,7 +686,7 @@ const makeNode = (name, ...children) => {
  * @param {string} prop Name of property to act on
  * @param {...any} val Value, with first being one to set to property, or none to get the current property w/o setting
  */
-const property = (array, prop, ...val) => {
+function property(array, prop, ...val) {
     if (array instanceof Node)
         return property([array], prop, ...val);
     else if (array instanceof NodeList || array instanceof HTMLCollection)
@@ -670,43 +696,38 @@ const property = (array, prop, ...val) => {
     if (val.length >= 1) {
         const value = val[0];
         array.forEach(el => {
-            if (typeof value === 'undefined') {
+            if (typeof value === 'undefined')
                 el[prop] = undefined;
-            }
             else if (value instanceof NotifyingValue) {
                 value.addListener(v => window.requestAnimationFrame(() => property(el, prop, v)));
                 value.forceTrigger();
             }
-            else if (prop === 'on') {
+            else if (prop === 'on')
                 addEvents(el, value);
-            }
-            else if (prop === 'class') {
+            else if (prop === 'class')
                 addClass(el, value);
-            }
-            else if (prop === 'classList') {
+            else if (prop === 'classList')
                 setClassList(el, value);
-            }
             else if (prop === 'style') {
                 if (typeof value === 'string')
                     el.setAttribute(prop, value);
                 else
                     setStyle(el, value);
             }
-            else {
+            else
                 el[prop] = value;
-            }
         });
     }
     return ret;
 };
 
-
 /**
  * Remove nodes from the UI
  * @param {Node | Node[] | NodeList | HTMLCollection} nodeArray Node(s) to remove from the UI
  */
-const removeNode = (nodeArray) => {
-    if (nodeArray instanceof Array || nodeArray instanceof NodeList || nodeArray instanceof HTMLCollection)
+function removeNode(nodeArray) {
+    if (nodeArray instanceof Array || nodeArray instanceof NodeList ||
+            nodeArray instanceof HTMLCollection)
         [...nodeArray].forEach(item => removeNode(item));
     else if (nodeArray instanceof Node)
         nodeArray.remove();
@@ -718,26 +739,22 @@ const removeNode = (nodeArray) => {
  * @param {Node | Node[] | NodeList | HTMLCollection} node Node or array of Nodes to insert new nodes before
  * @param {...(string | Node)} nodes New nodes to insert before existing nodes
  */
-const insertBefore = (node, ...nodes) => {
+function insertBefore(node, ...nodes) {
     if (node instanceof Array || node instanceof NodeList || node instanceof HTMLCollection) {
         if (node.length > 0)
             insertBefore(node[0], ...nodes);
     }
     else {
-        preprocChildren(...nodes)
-            .forEach(child => {
-                if (child.toappend) {
-                    if (child.toappend instanceof Node) {
-                        node.before(child.toappend);
-                    }
-                    else if (child.toappend instanceof NotifyingValue) {
-                        new DomBinding(child.toappend, node, x => node.before(x));
-                    }
-                    else if (child.toappend instanceof Object) {
-                        setProperties(node, child.toappend);
-                    }
-                }
-            });
+        preprocChildren(...nodes).forEach(child => {
+            if (child.toappend) {
+                if (child.toappend instanceof Node)
+                    node.before(child.toappend);
+                else if (child.toappend instanceof NotifyingValue)
+                    new DomBinding(child.toappend, node, x => node.before(x));
+                else if (child.toappend instanceof Object)
+                    setProperties(node, child.toappend);
+            }
+        });
     }
     return node;
 };
@@ -747,27 +764,22 @@ const insertBefore = (node, ...nodes) => {
  * @param {Node | Node[] | NodeList | HTMLCollection} node Node or array of Nodes to insert new nodes after
  * @param {...(string | Node)} nodes New nodes to insert after existing nodes
  */
-const insertAfter = (node, ...nodes) => {
+function insertAfter(node, ...nodes) {
     if (node instanceof Array || node instanceof NodeList || node instanceof HTMLCollection) {
         if (node.length > 0)
             insertAfter(node[node.length - 1], ...nodes);
     }
     else {
-        preprocChildren(...nodes)
-            .reverse()
-            .forEach(child => {
-                if (child.toappend) {
-                    if (child.toappend instanceof Node) {
-                        node.after(child.toappend);
-                    }
-                    else if (child.toappend instanceof NotifyingValue) {
-                        new DomBinding(child.toappend, node, x => node.after(x));
-                    }
-                    else if (child.toappend instanceof Object) {
-                        setProperties(node, child.toappend);
-                    }
-                }
-            });
+        preprocChildren(...nodes).reverse().forEach(child => {
+            if (child.toappend) {
+                if (child.toappend instanceof Node)
+                    node.after(child.toappend);
+                else if (child.toappend instanceof NotifyingValue)
+                    new DomBinding(child.toappend, node, x => node.after(x));
+                else if (child.toappend instanceof Object)
+                    setProperties(node, child.toappend);
+            }
+        });
     }
     return node;
 };
@@ -777,35 +789,34 @@ const insertAfter = (node, ...nodes) => {
  * @param {Node} parentEl parent element
  * @param {string[]} query Any queries to run
  */
-const findChildrenSingleParent = (parentEl, ...query) =>
-    query
+function findChildrenSingleParent(parentEl, ...query) {
+    return query
         .map(q =>
             [...parentEl.querySelectorAll(q)])
         .reduce((p, c) => {
             p.push(...c);
             return p;
         }, []);
+}
 
 /**
  * Find the matching children of a parent element or elements
  * @param {Node | Node[] | NodeList | HTMLCollection} parentEl parent element
  * @param {string[]} query Any queries to run
  */
-const findChildren = (parentEl, ...query) => 
-    parentEl instanceof Node ?
-        enhanceElements(findChildrenSingleParent(parentEl, ...query))
-    :   parentEl instanceof Array || 
-        parentEl instanceof NodeList || 
-        parentEl instanceof HTMLCollection ?
-            enhanceElements(
-                [...parentEl]
-                    .map(currParent => 
-                        findChildrenSingleParent(currParent, ...query))
-                    .reduce((p, c) => {
-                        p.push(...c);
-                        return p;
-                    }, []))
-        :   null;
+function findChildren(parentEl, ...query) {
+    if (parentEl instanceof Node)
+        return enhanceElements(findChildrenSingleParent(parentEl, ...query))
+    else if  (parentEl instanceof Array ||
+            parentEl instanceof NodeList ||
+            parentEl instanceof HTMLCollection)
+        return enhanceElements(
+            [...parentEl].map(currParent => findChildrenSingleParent(currParent, ...query))
+                .reduce((p, c) => {
+                    p.push(...c);
+                    return p;
+                }, []));
+}
 
 /**
  * @typedef {Object} ImogeneArrayBase
@@ -825,7 +836,7 @@ const findChildren = (parentEl, ...query) =>
  * @property {(...nodes: (string|Node)[]) => Node} after
  * @property {(...query: string[]) => ImogeneArray} find
  * @property {HTMLElement[]} array
- * 
+ *
  * @typedef {Array<HTMLElement> & ImogeneArrayBase} ImogeneArray
  */
 
@@ -834,7 +845,7 @@ const findChildren = (parentEl, ...query) =>
  * @param {ImogeneArray} array array to enhance
  * @returns {ImogeneArray} enhanced array
  */
-const enhanceElements = (array) => {
+function enhanceElements(array) {
     if (array instanceof Array) {
         let extendWith = {
             empty: () => empty(array),
@@ -859,17 +870,14 @@ const enhanceElements = (array) => {
             find: (...query) => findChildren(array, ...query),
 
             array: array,
-
             ___imogeneExtended___: true
         };
         Object.assign(array, extendWith);
     }
-    else if (array instanceof NodeList || array instanceof HTMLCollection) {
+    else if (array instanceof NodeList || array instanceof HTMLCollection)
         return enhanceElements([...array]);
-    }
-    else if (array instanceof Node) {
+    else if (array instanceof Node)
         return enhanceElements([array]);
-    }
     return array;
 };
 
@@ -882,18 +890,14 @@ const makeEmpty = () => enhanceElements([]);
  * @param {string[]} query Queries to run search for (see querySelectorAll)
  * @returns {ImogeneArray}
  */
-const findElements = (...query) =>
-    enhanceElements(
-        query
-            .map(q =>
-                [...document.querySelectorAll(q)])
-            .reduce((p, v) => {
-                p.push(...v);
-                return p;
-            }, []));
+function findElements(...query) {
+    return enhanceElements(query.map(q => [...document.querySelectorAll(q)])
+        .reduce((p, v) => {
+            p.push(...v);
+            return p;
+        }, []));
+}
 
-
- 
  /**
   * Create a new events handler object
   * @returns {EventsHandler} a new events handler object
@@ -906,21 +910,21 @@ const findElements = (...query) =>
   * @param {Function} [t] translation function
   * @returns {NotifyingValue} a new notifying value object containing the value
   */
-  const value = (v, t) => new NotifyingValue(v, t);
- 
+const value = (v, t) => new NotifyingValue(v, t);
+
   /**
    * Create a new array of notifying values
    * @param {number} n Length of array to create
    * @param {Function} g Getter for initial values
    * @returns {NotifyingValue[]} Newly created array
    */
-  const valueArray = (n, g = (i) => i) => {
-      let ret = [];
-      for (let i = 0; i < n; ++i) {
-          ret.push(value(g(i)));
-      }
-      return ret;
-  };
+function valueArray(n, g = (i) => i) {
+    let ret = [];
+    for (let i = 0; i < n; ++i) {
+        ret.push(value(g(i)));
+    }
+    return ret;
+};
 
 /**
  * Construct a new binding
@@ -929,46 +933,47 @@ const findElements = (...query) =>
  * @param {(x: HTMLElement) => void} [insert] method used to insert DOM elements
  * @param {Array} [exist] Any existing elements to replace, if applicable
  */
- const bind = 
+const bind =
     (value, container, insert = (x => container.appendChild(x)), exist = null) =>
         new DomBinding(value, container, insert, exist);
- 
- /** Collection of exports for Imogene functionality */
- export const Imogene = {
-     getOwnProperties: getOwnProperties,
-     camelize: camelize,
-     flattenSlots: flattenSlots,
-     runOnLoad: runOnLoad,
- 
-     event: event,
-     value: value,
-     valueArray: valueArray,
-     bind: bind,
- 
-     parentElements: parentElements,
-     empty: empty,
-     appendChildren: appendChildren,
-     emptyAndReplace: emptyAndReplace,
- 
-     addEvents: addEvents,
-     removeEvents: removeEvents,
-     setClassList: setClassList,
-     addClass: addClass,
-     removeClass: removeClass,
-     setStyle: setStyle,
-     setProperties: setProperties,
- 
-     make: makeNode,
-     makeEmpty: makeEmpty,
-     enhance: enhanceElements,
 
-     prop: property,
+/** Collection of exports for Imogene functionality */
+export const Imogene = {
+    getOwnProperties: getOwnProperties,
+    camelize: camelize,
+    runOnLoad: runOnLoad,
 
-     removeNode: removeNode,
-     insertBefore: insertBefore,
-     insertAfter: insertAfter,
+    event: event,
+    value: value,
+    valueArray: valueArray,
+    bind: bind,
 
-     findChildren: findChildren,
-     find: findElements
- };
- 
+    parentElements: parentElements,
+    empty: empty,
+    appendChildren: appendChildren,
+    emptyAndReplace: emptyAndReplace,
+
+    addEvents: addEvents,
+    removeEvents: removeEvents,
+    setClassList: setClassList,
+    addClass: addClass,
+    removeClass: removeClass,
+    setStyle: setStyle,
+    setProperties: setProperties,
+
+    make: makeNode,
+    makeEmpty: makeEmpty,
+    enhance: enhanceElements,
+    fragBase: fragmentUnifier,
+    unify: unifyFragments,
+
+    prop: property,
+
+    removeNode: removeNode,
+    insertBefore: insertBefore,
+    insertAfter: insertAfter,
+
+    findChildren: findChildren,
+    find: findElements
+};
+
